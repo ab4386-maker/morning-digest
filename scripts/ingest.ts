@@ -1,6 +1,17 @@
 // Local + GitHub Actions entry point for runIngest.
-// Env loading is automatic: tsx auto-injects .env.local when present (local dev),
-// and GitHub Actions secrets are set as process.env directly (CI). No dotenv needed.
+//
+// Local: loads .env.local with `override: true` so values in the file win over
+//   any conflicting shell env vars (a common gotcha is an empty
+//   `export ANTHROPIC_API_KEY=` in ~/.zshrc silently overriding the real key).
+// CI: skips file loading entirely — GitHub Actions injects secrets as process.env.
+import fs from "node:fs";
+if (fs.existsSync(".env.local")) {
+  // Lazy require so CI doesn't need the dotenv package if it weren't installed.
+  // (dotenv IS in devDependencies, so this works either way; the guard is belt-and-suspenders.)
+  const dotenv = require("dotenv");
+  dotenv.config({ path: ".env.local", override: true });
+}
+
 import { runIngest } from "../lib/pipeline";
 import type { IngestMode } from "../lib/pipeline";
 
