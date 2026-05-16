@@ -260,15 +260,27 @@ Cold start (no ratings) → addendum is empty string, prompt is unchanged.
 
 ## 12. Crons
 
-`vercel.json`:
-```json
-{ "crons": [
-  { "path": "/api/cron/full",      "schedule": "0 12 * * *" },
-  { "path": "/api/cron/news-only", "schedule": "0 22 * * *" }
-]}
+**Now runs on GitHub Actions** (`.github/workflows/ingest.yml`), not Vercel cron. The ingest exceeds Vercel Hobby's 60s function cap; GitHub Actions has 6h timeout, no cost concerns (private repo Hobby gets 2000 min/month, we use ~240).
+
+```yaml
+schedule:
+  - cron: "0 12 * * *"   # 8am ET  — full mode (podcasts + weekly trends)
+  - cron: "0 22 * * *"   # 6pm ET  — news-only mode (skips podcasts/trends)
+workflow_dispatch:        # manual trigger from GitHub UI with mode + email options
 ```
 
-UTC times = 8am + 6pm ET during EDT (US daylight savings). Reminder: Vercel Hobby caps at 2 crons, each ≤1×/day. Both routes auth via `CRON_SECRET` header check, and only send the briefing email when the request's user-agent contains `vercel-cron` (or `?email=true` is passed).
+UTC times = 8am + 6pm ET during EDT. Bump both by 1h during EST (winter).
+
+Workflow runs `npm run ingest -- --mode=<full|news-only> [--send-email]` which invokes [scripts/ingest.ts](scripts/ingest.ts) → same `runIngest()` used by the Vercel routes, but executing on GitHub's runners. Writes to the same Vercel KV as production reads from — so a successful GitHub Actions run instantly updates morning-digest-plum.vercel.app.
+
+**Vercel cron is disabled** (empty `crons: []` in `vercel.json`). The `/api/cron/full` and `/api/cron/news-only` routes still exist — they can be hit manually via curl for testing.
+
+**Manual ingest options:**
+- Dashboard "Refresh now" button → calls `/api/refresh` (Vercel, capped at 60s — works for small runs only)
+- `npm run ingest` locally → full pipeline, no time limit
+- GitHub Actions "Run workflow" button → same as cron, with optional email toggle
+
+**Secrets** required in GitHub Actions (Repo Settings → Secrets and variables → Actions): `ANTHROPIC_API_KEY`, `GMAIL_USER`, `GMAIL_APP_PASSWORD`, `EMAIL_RECIPIENT`, `COLOSSUS_COOKIE`, `KV_REST_API_URL`, `KV_REST_API_TOKEN`, `KV_REST_API_READ_ONLY_TOKEN`, `KV_URL`, `REDIS_URL`. Copy values from `.env.local`.
 
 ## 13. Environment variables (in `.env.local` and Vercel project settings)
 

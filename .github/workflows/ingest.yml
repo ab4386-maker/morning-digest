@@ -1,0 +1,83 @@
+name: Morning Digest Ingest
+
+# Runs the same `npm run ingest` pipeline used locally, but on GitHub's runners
+# so we sidestep Vercel Hobby's 60s function cap. Writes to the same Vercel KV
+# that production reads from — so morning-digest-plum.vercel.app sees the
+# new items immediately after a successful run.
+
+on:
+  schedule:
+    # Crons are in UTC. 12:00 UTC = 8am EDT, 22:00 UTC = 6pm EDT.
+    # If you switch to EST (winter), bump both by 1h: 13 UTC, 23 UTC.
+    - cron: "0 12 * * *"  # 8am ET — full mode, refreshes podcasts + weekly trends
+    - cron: "0 22 * * *"  # 6pm ET — news-only mode, skips podcasts/trends
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Ingest mode"
+        type: choice
+        default: full
+        options: [full, news-only]
+      send_email:
+        description: "Send the briefing email"
+        type: boolean
+        default: false
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Determine run parameters
+        id: params
+        env:
+          EVENT: ${{ github.event_name }}
+          SCHEDULE: ${{ github.event.schedule }}
+          DISPATCH_MODE: ${{ github.event.inputs.mode }}
+          DISPATCH_EMAIL: ${{ github.event.inputs.send_email }}
+        run: |
+          if [[ "$EVENT" == "schedule" ]]; then
+            # Both scheduled crons email by default
+            if [[ "$SCHEDULE" == "0 22 * * *" ]]; then
+              echo "mode=news-only" >> "$GITHUB_OUTPUT"
+            else
+              echo "mode=full" >> "$GITHUB_OUTPUT"
+            fi
+            echo "send_email=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "mode=${DISPATCH_MODE:-full}" >> "$GITHUB_OUTPUT"
+            echo "send_email=${DISPATCH_EMAIL:-false}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run ingest
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          EMAIL_RECIPIENT: ${{ secrets.EMAIL_RECIPIENT }}
+          COLOSSUS_COOKIE: ${{ secrets.COLOSSUS_COOKIE }}
+          KV_REST_API_URL: ${{ secrets.KV_REST_API_URL }}
+          KV_REST_API_TOKEN: ${{ secrets.KV_REST_API_TOKEN }}
+          KV_REST_API_READ_ONLY_TOKEN: ${{ secrets.KV_REST_API_READ_ONLY_TOKEN }}
+          KV_URL: ${{ secrets.KV_URL }}
+          REDIS_URL: ${{ secrets.REDIS_URL }}
+        run: |
+          MODE="${{ steps.params.outputs.mode }}"
+          SEND_EMAIL="${{ steps.params.outputs.send_email }}"
+          ARGS="--mode=$MODE"
+          if [[ "$SEND_EMAIL" == "true" ]]; then
+            ARGS="$ARGS --send-email"
+          fi
+          echo "Running: npm run ingest -- $ARGS"
+          npm run ingest -- $ARGS
