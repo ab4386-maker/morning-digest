@@ -24,7 +24,10 @@ export const TTL_HOURS: Record<Cadence, number> = {
 
 // ── RSS FETCH ──
 export const RSS_LOOKBACK_DAYS = 45; // items older than this never enter the pipeline
-export const RSS_ITEMS_PER_FEED = 8; // ceiling per source per fetch
+// Per-fetch ceiling per source. Cap mostly matters for high-volume feeds (Bisnow, NYT).
+// Set high enough that Claude — not the feed's publish order — picks what's important.
+// The per-tab CAPS + min-score floor + TTL still gate what reaches the UI.
+export const RSS_ITEMS_PER_FEED = 25;
 export const TRANSCRIPT_MAX_CHARS = 60000;
 export const FULL_CONTENT_MAX_CHARS = 30000;
 

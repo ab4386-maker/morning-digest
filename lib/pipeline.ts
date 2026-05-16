@@ -7,6 +7,7 @@ import { dedupItems } from "./dedup";
 import { synthesizeTrends } from "./synthesize";
 import { synthesizeOverview } from "./synthesize-overview";
 import { sendOverviewEmail } from "./email-sender";
+import { effectiveImportance } from "./scoring";
 import {
   readItems,
   readLastUpdated,
@@ -249,7 +250,10 @@ async function mergeFilterAndDedupe(
     const min = i.cadence === "fun" ? MIN_FUN_SCORE : MIN_MARKETS_SCORE;
     return i.importance >= min;
   });
-  survivors.sort((a, b) => b.importance - a.importance);
+  // Sort by recency-adjusted importance so the per-tab caps in routeAndCap surface
+  // the most relevant + freshest items (not just the highest raw Claude score).
+  // decayFactor is 1.0 for the first 48h, then tapers to 0.45 over ~30 days.
+  survivors.sort((a, b) => effectiveImportance(b, now) - effectiveImportance(a, now));
 
   // Topic dedup pass — ONLY on real news items.
   // Exclude podcasts (including WSB) and substacks — they're unique analyses, not coverage.

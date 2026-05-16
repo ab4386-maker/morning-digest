@@ -173,7 +173,7 @@ MIN_FUN_SCORE = 25
 TTL_HOURS = { today: 60, weekly: 60*24, fun: 30*24 }   // hours
 
 RSS_LOOKBACK_DAYS = 45         // items older than this never enter
-RSS_ITEMS_PER_FEED = 8         // per-source ceiling per fetch
+RSS_ITEMS_PER_FEED = 25        // per-source per-fetch cap; Claude (not feed order) picks what's important
 TRANSCRIPT_MAX_CHARS = 60000
 FULL_CONTENT_MAX_CHARS = 30000
 
@@ -210,6 +210,8 @@ decayFactor:
   168 < ageH ≤ 720 → linear 0.92 → 0.45
   ageH > 720       → 0.45
 ```
+
+This is used BOTH for client-side sorting (Dashboard) AND in `mergeFilterAndDedupe` so the per-tab caps in `routeAndCap` keep items that are important AND fresh, not just the highest raw Claude score.
 
 **TTL drop** (`mergeFilterAndDedupe`): item dropped if `ageH > TTL_HOURS[cadence]`.
 
