@@ -1,6 +1,23 @@
 "use client";
 
-import type { DigestItem, Source } from "@/lib/types";
+import type { DigestItem, Source, TabId } from "@/lib/types";
+
+// Friendly headings for known tabs. Tabs not listed here show their raw id (uppercased)
+// so a newly-added tab appears in Wired without needing this map updated.
+const TAB_LABELS: Partial<Record<TabId, string>> = {
+  today: "→ Today / Features / Other News",
+  reads: "→ Substacks",
+  breakdowns: "→ Podcasts",
+  re: "→ RE",
+  fun: "→ Fun",
+  other: "→ Other News",
+};
+
+// Display order for known tabs. Anything not listed gets appended in
+// first-seen order from the sources array, so new tabs show up automatically.
+const TAB_ORDER: TabId[] = ["today", "reads", "breakdowns", "re", "fun", "other"];
+
+const UNCLASSIFIED = "__unclassified__";
 
 export function WiredView({
   sources,
@@ -21,13 +38,23 @@ export function WiredView({
     }
   }
 
-  const groups = {
-    today: sources.filter((s) => s.tab === "today"),
-    reads: sources.filter((s) => s.tab === "reads"),
-    breakdowns: sources.filter((s) => s.tab === "breakdowns"),
-    fun: sources.filter((s) => s.tab === "fun"),
-    other: sources.filter((s) => !s.tab),
-  };
+  // Group sources by tab (or UNCLASSIFIED), preserving first-seen tab order.
+  const grouped = new Map<string, Source[]>();
+  for (const s of sources) {
+    const key = s.tab ?? UNCLASSIFIED;
+    const bucket = grouped.get(key) ?? [];
+    bucket.push(s);
+    grouped.set(key, bucket);
+  }
+
+  // Render in TAB_ORDER first, then any unknown tabs in first-seen order, then unclassified last.
+  const orderedKeys: string[] = [];
+  for (const t of TAB_ORDER) if (grouped.has(t)) orderedKeys.push(t);
+  for (const k of grouped.keys()) {
+    if (k === UNCLASSIFIED) continue;
+    if (!orderedKeys.includes(k)) orderedKeys.push(k);
+  }
+  if (grouped.has(UNCLASSIFIED)) orderedKeys.push(UNCLASSIFIED);
 
   return (
     <div className="mx-auto max-w-3xl space-y-8">
@@ -38,13 +65,22 @@ export function WiredView({
         expired cookie.
       </p>
 
-      <SourceGroup title="→ Today / Features / Other News" sources={groups.today} newestBySource={newestBySource} gmailConfigured={gmailConfigured} />
-      <SourceGroup title="→ Substacks" sources={groups.reads} newestBySource={newestBySource} gmailConfigured={gmailConfigured} />
-      <SourceGroup title="→ Podcasts" sources={groups.breakdowns} newestBySource={newestBySource} gmailConfigured={gmailConfigured} />
-      <SourceGroup title="→ Fun" sources={groups.fun} newestBySource={newestBySource} gmailConfigured={gmailConfigured} />
-      <SourceGroup title="Unclassified" sources={groups.other} newestBySource={newestBySource} gmailConfigured={gmailConfigured} />
+      {orderedKeys.map((key) => (
+        <SourceGroup
+          key={key}
+          title={titleFor(key)}
+          sources={grouped.get(key) ?? []}
+          newestBySource={newestBySource}
+          gmailConfigured={gmailConfigured}
+        />
+      ))}
     </div>
   );
+}
+
+function titleFor(key: string): string {
+  if (key === UNCLASSIFIED) return "Unclassified";
+  return TAB_LABELS[key as TabId] ?? `→ ${key.toUpperCase()}`;
 }
 
 function SourceGroup({
