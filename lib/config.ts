@@ -26,10 +26,12 @@ export const TTL_HOURS: Record<Cadence, number> = {
 
 // ── RSS FETCH ──
 export const RSS_LOOKBACK_DAYS = 45; // items older than this never enter the pipeline
-// Per-fetch ceiling per source. Cap mostly matters for high-volume feeds (Bisnow, NYT).
-// Set high enough that Claude — not the feed's publish order — picks what's important.
-// The per-tab CAPS + min-score floor + TTL still gate what reaches the UI.
-export const RSS_ITEMS_PER_FEED = 25;
+// Per-fetch ceiling per source. Tradeoff:
+//   higher = Claude (not feed order) picks what's important, more API cost + cron runtime
+//   lower  = faster crons, but high-volume feeds (Bisnow, Bloomberg, NYT) lose articles
+// 10 is the middle ground that keeps Vercel Hobby's 60s cron limit comfortable while
+// still capturing more than the original 8. Bump back up after Vercel Pro upgrade.
+export const RSS_ITEMS_PER_FEED = 10;
 export const TRANSCRIPT_MAX_CHARS = 60000;
 export const FULL_CONTENT_MAX_CHARS = 30000;
 

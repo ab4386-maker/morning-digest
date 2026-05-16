@@ -173,7 +173,7 @@ MIN_FUN_SCORE = 25
 TTL_HOURS = { today: 48, weekly: 60*24, fun: 30*24 }   // hours — today is a hard 2-day cap, forces rotation
 
 RSS_LOOKBACK_DAYS = 45         // items older than this never enter
-RSS_ITEMS_PER_FEED = 25        // per-source per-fetch cap; Claude (not feed order) picks what's important
+RSS_ITEMS_PER_FEED = 10        // per-source per-fetch cap; tuned to fit Vercel Hobby's 60s cron
 TRANSCRIPT_MAX_CHARS = 60000
 FULL_CONTENT_MAX_CHARS = 30000
 
