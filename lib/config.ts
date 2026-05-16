@@ -36,12 +36,15 @@ export const TRANSCRIPT_MAX_CHARS = 60000;
 export const FULL_CONTENT_MAX_CHARS = 30000;
 
 // ── CLAUDE ENRICHMENT ──
-export const ENRICH_BATCH_SIZE = 5;
-// Concurrency 2 keeps us under Tier 1's 10K output-tokens/minute cap with headroom for
-// the bigger per-feed item counts (RSS_ITEMS_PER_FEED=25) + the feedback memory addendum.
+// Batch size 8 cuts batch count ~40% (vs 5), amortizing per-call overhead better.
+// Each item averages ~250-500 output tokens (podcasts with sections section can hit
+// ~1000), so 8 × 1000 worst case = 8K — under the 10K MAX safety margin below.
+export const ENRICH_BATCH_SIZE = 8;
+// Concurrency 2 keeps us under Tier 1's 10K output-tokens/minute cap with headroom.
 // Bump to 3 only after upgrading to a higher Anthropic tier.
 export const ENRICH_CONCURRENCY = 2;
-export const ENRICH_MAX_TOKENS = 8000;
+// Headroom for podcast-heavy batches (full sections array per episode).
+export const ENRICH_MAX_TOKENS = 10000;
 
 // ── DEDUP ──
 export const DEDUP_MAX_TOKENS = 4000;

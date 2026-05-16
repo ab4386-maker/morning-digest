@@ -1,8 +1,10 @@
 import type { Rating, RatingsMap } from "./types";
 
 // Cap how many rated examples we ship per pass. Title + tldr ≈ 60-120 tokens each,
-// so 12 of each keeps the addendum ~1.5K tokens — meaningful signal, modest cost.
-const MAX_EXAMPLES_PER_BUCKET = 12;
+// so 8 of each keeps the addendum ~1K tokens — most recent ratings dominate signal
+// anyway and the addendum is now inside a cached system prefix, so each token
+// counts toward both cache write cost AND every subsequent batch's cache read.
+const MAX_EXAMPLES_PER_BUCKET = 8;
 
 // Half-life on rating freshness — older ratings still count but newer ones rank first.
 function recency(r: Rating): number {

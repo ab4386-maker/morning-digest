@@ -24,10 +24,11 @@ type Enrichment = {
   sections?: { label: string; body: string }[];
 };
 
-function buildMarketsPrompt(items: DigestItem[], preferenceAddendum: string = "") {
-  return `${USER_PROFILE}${preferenceAddendum}
-
-For each news item below, produce:
+// The static instructions and output schema that repeat for every batch — perfect
+// fit for prompt caching since they're identical across all 20+ batches in a single
+// run. Combined with USER_PROFILE + preferenceAddendum this is ~3K tokens that get
+// charged at 10% after the first batch.
+const MARKETS_INSTRUCTIONS = `For each news item below, produce:
 
 1. A relevance score (0-100) per the guidance above. Apply the trend boost aggressively.
 2. **"relevant": true | false** — broader than just L/S setups. Default to TRUE.
@@ -74,17 +75,42 @@ If two or more items cover the same underlying story across different outlets (e
 
 Return ONLY a JSON array. No commentary, no markdown fences. Format:
 [{"id":"...","score":N,"relevant":true|false,"cadence":"today|weekly","kind":"breaking|feature","tldr":"...","bullets":["...","...","..."],"whyItMatters":"...","sections":[{"label":"...","body":"..."}]}]
-(omit "sections" entirely for non-podcast items)
+(omit "sections" entirely for non-podcast items)`;
 
-Items (each with age in hours):
+const FUN_INSTRUCTIONS = `For each item below, produce:
+1. A score (0-100) — be generous on share-worthy soccer/quirky-finance content; 60+ is fine for a decent read.
+2. A "tldr": 1-2 punchy sentences capturing the hook.
+3. A 3-bullet summary. Conversational, like telling a friend. Not corporate.
+
+CROSS-SOURCE DEDUPLICATION — apply aggressively:
+If two or more items cover the same underlying event (same VAR incident, same transfer story, same match drama, same finance-meme), score the SINGLE most substantive/share-worthy one highly and score the duplicates UNDER 35. Pick the version with the best take or most unique angle, not just the first published. An opinion column + a news piece + a follow-up about the same incident are still duplicates — only one survives.
+
+Return ONLY a JSON array, no fences:
+[{"id":"...","score":N,"tldr":"...","bullets":["...","...","..."]}]`;
+
+// The full cacheable prefix — USER_PROFILE + (optional) feedback memory + the
+// instruction block. Stable across every batch in a single ingest run, so it
+// rides the Anthropic prompt cache.
+function buildMarketsSystem(preferenceAddendum: string): string {
+  return `${USER_PROFILE}${preferenceAddendum}\n\n${MARKETS_INSTRUCTIONS}`;
+}
+
+function buildFunSystem(): string {
+  return `${FUN_PROFILE}\n\n${FUN_INSTRUCTIONS}`;
+}
+
+// Per-batch user content — just the items. Tiny, varies per call, NOT cached.
+function renderItemsForMarkets(items: DigestItem[]): string {
+  return `Items (each with age in hours):
 ${items
   .map((i) => {
     const ageH = Math.round((Date.now() - new Date(i.publishedAt).getTime()) / 3600000);
     // For podcasts + substacks with real transcript/article body, pass a generous excerpt
     // so the summary reflects actual content instead of just the headline.
-    const bodyExcerpt = i.fullContent && i.fullContent.length > 1000
-      ? `\nbody: ${i.fullContent.slice(0, 8000)}`
-      : "";
+    const bodyExcerpt =
+      i.fullContent && i.fullContent.length > 1000
+        ? `\nbody: ${i.fullContent.slice(0, 8000)}`
+        : "";
     return `--- id: ${i.id}
 source: ${i.sourceName}
 age: ${ageH}h
@@ -94,21 +120,8 @@ preview: ${i.bullets.slice(0, 3).join(" ")}${bodyExcerpt}`;
   .join("\n\n")}`;
 }
 
-function buildFunPrompt(items: DigestItem[]) {
-  return `${FUN_PROFILE}
-
-For each item below, produce:
-1. A score (0-100) — be generous on share-worthy soccer/quirky-finance content; 60+ is fine for a decent read.
-2. A "tldr": 1-2 punchy sentences capturing the hook.
-3. A 3-bullet summary. Conversational, like telling a friend. Not corporate.
-
-CROSS-SOURCE DEDUPLICATION — apply aggressively:
-If two or more items cover the same underlying event (same VAR incident, same transfer story, same match drama, same finance-meme), score the SINGLE most substantive/share-worthy one highly and score the duplicates UNDER 35. Pick the version with the best take or most unique angle, not just the first published. An opinion column + a news piece + a follow-up about the same incident are still duplicates — only one survives.
-
-Return ONLY a JSON array, no fences:
-[{"id":"...","score":N,"tldr":"...","bullets":["...","...","..."]}]
-
-Items:
+function renderItemsForFun(items: DigestItem[]): string {
+  return `Items:
 ${items
   .map(
     (i) =>
@@ -120,11 +133,20 @@ preview: ${i.bullets.slice(0, 3).join(" ")}`
   .join("\n\n")}`;
 }
 
-async function runEnrich(prompt: string): Promise<Enrichment[]> {
+async function runEnrich(system: string, userMessage: string): Promise<Enrichment[]> {
   const resp = await client().messages.create({
     model: "claude-haiku-4-5-20251001",
     max_tokens: ENRICH_MAX_TOKENS,
-    messages: [{ role: "user", content: prompt }],
+    // Mark the system prefix as ephemeral-cached. First batch pays a 25% write
+    // premium; subsequent batches pay 10% of input cost on the cached portion.
+    system: [
+      {
+        type: "text",
+        text: system,
+        cache_control: { type: "ephemeral" },
+      },
+    ],
+    messages: [{ role: "user", content: userMessage }],
   });
   const block = resp.content.find((b) => b.type === "text");
   const text = block && block.type === "text" ? block.text : "[]";
@@ -156,18 +178,21 @@ function applyEnrichments(items: DigestItem[], enrichments: Enrichment[]): Diges
   });
 }
 
-// Splits items into ENRICH_BATCH_SIZE-sized batches and runs ENRICH_CONCURRENCY in parallel.
-// Tunable knobs live in lib/config.ts.
+// Splits items into ENRICH_BATCH_SIZE-sized batches and runs ENRICH_CONCURRENCY in
+// parallel. All batches in a run share the same cached system prompt — first batch
+// is a cache write (~25% premium), all subsequent batches are cache reads (~10%
+// of input cost on the shared prefix). Tunable knobs live in lib/config.ts.
 async function enrichInBatches(
   items: DigestItem[],
-  promptBuilder: (batch: DigestItem[]) => string
+  system: string,
+  renderItems: (batch: DigestItem[]) => string
 ): Promise<DigestItem[]> {
   const batches: DigestItem[][] = [];
   for (let i = 0; i < items.length; i += ENRICH_BATCH_SIZE) {
     batches.push(items.slice(i, i + ENRICH_BATCH_SIZE));
   }
   console.log(
-    `[rank] enriching ${batches.length} batches in parallel (concurrency ${ENRICH_CONCURRENCY})`
+    `[rank] enriching ${batches.length} batches in parallel (concurrency ${ENRICH_CONCURRENCY}, batch size ${ENRICH_BATCH_SIZE}, prompt cache on)`
   );
   const results: DigestItem[] = new Array(items.length);
   let cursor = 0;
@@ -178,7 +203,7 @@ async function enrichInBatches(
         if (myIdx >= batches.length) return;
         const batch = batches[myIdx];
         const offset = myIdx * ENRICH_BATCH_SIZE;
-        const enrichments = await runEnrich(promptBuilder(batch));
+        const enrichments = await runEnrich(system, renderItems(batch));
         const enriched = applyEnrichments(batch, enrichments);
         enriched.forEach((item, j) => {
           results[offset + j] = item;
@@ -194,10 +219,10 @@ export async function enrichMarketsItems(
   preferenceAddendum: string = ""
 ): Promise<DigestItem[]> {
   if (items.length === 0) return items;
-  return enrichInBatches(items, (batch) => buildMarketsPrompt(batch, preferenceAddendum));
+  return enrichInBatches(items, buildMarketsSystem(preferenceAddendum), renderItemsForMarkets);
 }
 
 export async function enrichFunItems(items: DigestItem[]): Promise<DigestItem[]> {
   if (items.length === 0) return items;
-  return enrichInBatches(items, buildFunPrompt);
+  return enrichInBatches(items, buildFunSystem(), renderItemsForFun);
 }

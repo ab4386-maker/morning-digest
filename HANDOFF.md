@@ -185,9 +185,9 @@ RSS_ITEMS_PER_FEED = 10        // per-source per-fetch cap; tuned to fit Vercel 
 TRANSCRIPT_MAX_CHARS = 60000
 FULL_CONTENT_MAX_CHARS = 30000
 
-ENRICH_BATCH_SIZE = 5          // items per Claude call
-ENRICH_CONCURRENCY = 3         // Tier 1 rate-limit safe
-ENRICH_MAX_TOKENS = 8000
+ENRICH_BATCH_SIZE = 8          // items per Claude call (bumped from 5 for cost amortization)
+ENRICH_CONCURRENCY = 2         // Tier 1 rate-limit safe (10K out tok/min)
+ENRICH_MAX_TOKENS = 10000      // headroom for podcast batches with sections arrays
 DEDUP_MAX_TOKENS = 4000
 
 TRENDS_REFRESH_DAYS = 7
@@ -253,7 +253,7 @@ Cold start (no ratings) → addendum is empty string, prompt is unchanged.
 ## 11. Claude prompts (locations to edit)
 
 - `lib/profile.ts` — `USER_PROFILE` (4-tier scoring guide) + `FUN_PROFILE`. Used as preamble in enrichment prompts.
-- `lib/rank.ts` — `buildMarketsPrompt` / `buildFunPrompt`. Output schema: `{id, score, tldr, bullets, cadence?, whyItMatters?, relevant?, kind?, sections?}`.
+- `lib/rank.ts` — `buildMarketsSystem` / `buildFunSystem` (cacheable prefix sent as `system`) + `renderItemsForMarkets` / `renderItemsForFun` (per-batch user message). Output schema: `{id, score, tldr, bullets, cadence?, whyItMatters?, relevant?, kind?, sections?}`. Each batch passes the system block with `cache_control: { type: "ephemeral" }` so the ~3K-token prefix rides Anthropic's prompt cache (first batch ~25% write premium, subsequent batches ~10% read cost — saves ~$3/mo).
 - `lib/dedup.ts` — `buildDedupPrompt`. Output: `{drop: string[]}`. Heavily tuned with worked examples (BlackRock, Trump-Xi).
 - `lib/synthesize.ts` — Trends Debunked. Output: `Trend[]`. 4-6 items, ~250-400 words across body fields each.
 - `lib/synthesize-overview.ts` — Overview briefing. Output: `Overview { today, features, substacks, podcasts, trends, fun }` — each an array of short bullet strings.
