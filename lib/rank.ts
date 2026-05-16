@@ -22,8 +22,8 @@ type Enrichment = {
   sections?: { label: string; body: string }[];
 };
 
-function buildMarketsPrompt(items: DigestItem[]) {
-  return `${USER_PROFILE}
+function buildMarketsPrompt(items: DigestItem[], preferenceAddendum: string = "") {
+  return `${USER_PROFILE}${preferenceAddendum}
 
 For each news item below, produce:
 
@@ -186,9 +186,12 @@ async function enrichInBatches(
   return results;
 }
 
-export async function enrichMarketsItems(items: DigestItem[]): Promise<DigestItem[]> {
+export async function enrichMarketsItems(
+  items: DigestItem[],
+  preferenceAddendum: string = ""
+): Promise<DigestItem[]> {
   if (items.length === 0) return items;
-  return enrichInBatches(items, buildMarketsPrompt);
+  return enrichInBatches(items, (batch) => buildMarketsPrompt(batch, preferenceAddendum));
 }
 
 export async function enrichFunItems(items: DigestItem[]): Promise<DigestItem[]> {

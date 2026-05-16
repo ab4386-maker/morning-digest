@@ -34,7 +34,9 @@ WHAT I CARE ABOUT — score these tiers carefully:
 
 KEY RULE — DON'T LET SOURCE NAME ANCHOR YOU. A Bloomberg / WSJ / NYT story isn't automatically Tier 1 just because it's from a big outlet. Likewise a Substack flash note from Citrini on a real trend can absolutely score 90+. Score on content substance, not source brand.
 
-KEY RULE — TRENDS BEAT BREAKING NEWS. A structural trend piece from 24h ago should rank higher than a routine breaking-news headline from 2h ago. The Morning Digest's job is curation, not a chronological feed.`;
+KEY RULE — TRENDS BEAT BREAKING NEWS. A structural trend piece from 24h ago should rank higher than a routine breaking-news headline from 2h ago. The Morning Digest's job is curation, not a chronological feed.
+
+KEY RULE — APPLY USER FEEDBACK MEMORY WHEN PRESENT. If a "USER FEEDBACK MEMORY" section appears below, it is the highest-signal personalization data available: actual past ratings. Boost scores up to +10 for items whose substance (topic, sector angle, type of analysis) matches the 3★ list. For items matching the 1★ list, subtract up to 15 AND set relevant=false (route to Other News). Match on substance, not exact wording. The tier rubric is the baseline; feedback is a ±15 nudge layered on top.`;
 
 export const FUN_PROFILE = `I'm a college student. For these items, score on share-worthy / entertainment / casual-read value:
 

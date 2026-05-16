@@ -10,11 +10,12 @@ export const PROMOTE_TO_TODAY_THRESHOLD = 80;
 
 export type LastUpdated = Partial<Record<TabId | "trends", string>>;
 
-// User-provided 1-5 rating with item snapshot so we can recalibrate after the item rolls off
+// 3-star rating used as a personalization signal for Claude's enrichment scoring:
+//   3 = love (boost similar items), 2 = meh (neutral), 1 = bad (demote similar / push to Other).
+// Item snapshot is preserved so the signal stays useful after the item itself rolls off.
 export type Rating = {
-  rating: 1 | 2 | 3 | 4 | 5;
+  rating: 1 | 2 | 3;
   ratedAt: string;
-  // snapshot fields for offline analysis
   sourceId: string;
   sourceName: string;
   title: string;

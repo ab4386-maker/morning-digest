@@ -170,7 +170,7 @@ Each source has: `id, name, kind ("rss"|"email"), url|emailSender, weight, defau
 CAPS = { today: 25, other: 25, reads: 15, breakdowns: 15, fun: 12, re: 15 }
 MIN_MARKETS_SCORE = 30
 MIN_FUN_SCORE = 25
-TTL_HOURS = { today: 60, weekly: 60*24, fun: 30*24 }   // hours
+TTL_HOURS = { today: 48, weekly: 60*24, fun: 30*24 }   // hours — today is a hard 2-day cap, forces rotation
 
 RSS_LOOKBACK_DAYS = 45         // items older than this never enter
 RSS_ITEMS_PER_FEED = 25        // per-source per-fetch cap; Claude (not feed order) picks what's important
@@ -202,16 +202,41 @@ lookback   = source.defaultCadence === "weekly" ? 14d : 24h
 
 **Effective importance for sort** (`lib/scoring.ts`):
 ```
-effectiveImportance(item, now) = decayFactor(ageHours) * item.importance
+effectiveImportance(item, now) = round(item.importance * decayFactor(ageHours))
 
-decayFactor:
-  ageH ≤ 48      → 1.00
-  48 < ageH ≤ 168  → linear 1.00 → 0.92
-  168 < ageH ≤ 720 → linear 0.92 → 0.45
-  ageH > 720       → 0.45
+decayFactor (stepwise):
+  ageH < 24        → 1.00   (first day — no penalty, signal quality wins)
+  ageH < 36        → 0.85   (mild penalty 24-36h)
+  ageH < 48        → 0.65   (36-48h — has to be high-quality to stay)
+  ageH < 168       → 0.55   (2-7 days, weekly/fun only — today is TTL-filtered)
+  ageH < 336       → 0.45   (1-2 weeks)
+  ageH < 720       → 0.35   (2-4 weeks)
+  else             → 0.25
 ```
 
-This is used BOTH for client-side sorting (Dashboard) AND in `mergeFilterAndDedupe` so the per-tab caps in `routeAndCap` keep items that are important AND fresh, not just the highest raw Claude score.
+Used BOTH for client-side sorting (Dashboard) AND in `mergeFilterAndDedupe` so the per-tab caps in `routeAndCap` keep items that are important AND fresh, not just the highest raw Claude score. The 24-48h taper combined with `TTL_HOURS.today = 48` forces daily-publishing sources to rotate while Tier 1 pieces can survive 36-48h.
+
+## 11a. Personalization (user feedback memory)
+
+`components/RatingStars.tsx` gives every card a 3-step rating:
+
+| Rating | Meaning | Effect on future ingests |
+|---|---|---|
+| 3★ love | "more like this" | Up to **+10** boost on items resembling this in topic/framing/angle |
+| 2★ meh | neutral | No effect |
+| 1★ demote | "don't show me this" | Up to **−15** AND force `relevant=false` (routes to Other News) |
+
+Ratings persist in KV (`ratings`) with a full item snapshot so the signal survives after the rated item rolls off the active digest.
+
+**Flow** (`lib/preferences.ts`):
+1. `runIngest` calls `readRatings` → `buildPreferenceMemory` keeps the most recent 12 of each (3★ / 1★) by `ratedAt`.
+2. `renderPreferenceAddendum` produces a "USER FEEDBACK MEMORY" block listing title + tldr of each example.
+3. The block is appended to `USER_PROFILE` inside `buildMarketsPrompt` — Claude does the similarity reasoning (pattern-match on substance, not literal phrasing).
+4. `USER_PROFILE` has an explicit KEY RULE telling Claude to apply this as a ±15 nudge layered on top of the tier rubric, and to flip `relevant=false` for demoted look-alikes.
+
+Cold start (no ratings) → addendum is empty string, prompt is unchanged.
+
+**Legacy 1-5 ratings** (pre-overhaul) are coerced on read in `lib/store.ts:coerceRating`: 5,4 → 3; 3 → 2; 2,1 → 1.
 
 **TTL drop** (`mergeFilterAndDedupe`): item dropped if `ageH > TTL_HOURS[cadence]`.
 

@@ -11,6 +11,7 @@ import { effectiveImportance } from "./scoring";
 import {
   readItems,
   readLastUpdated,
+  readRatings,
   readTrends,
   writeCreditsStatus,
   writeItems,
@@ -18,6 +19,7 @@ import {
   writeOverview,
   writeTrends,
 } from "./store";
+import { buildPreferenceMemory, renderPreferenceAddendum } from "./preferences";
 import type { DigestItem, LastUpdated, Trend } from "./types";
 import {
   CAPS,
@@ -81,8 +83,16 @@ export async function runIngest(opts: IngestOptions = {}): Promise<IngestResult>
   );
   await hydrateTranscripts(newMarkets);
 
-  // 3. Enrich via Claude (with credit-exhausted detection)
-  const { enrichedMarkets, enrichedFun } = await enrichWithCreditTracking(newMarkets, newFun);
+  // 3. Build personalization addendum from ratings, then enrich via Claude
+  const preferenceAddendum = renderPreferenceAddendum(buildPreferenceMemory(await readRatings()));
+  if (preferenceAddendum) {
+    console.log(`[pipeline] applying user feedback memory (${preferenceAddendum.length} chars)`);
+  }
+  const { enrichedMarkets, enrichedFun } = await enrichWithCreditTracking(
+    newMarkets,
+    newFun,
+    preferenceAddendum
+  );
   const enrichedFunTagged = enrichedFun.map((i) => ({ ...i, cadence: "fun" as const }));
 
   // 4. Merge + filter + topic-dedup → final survivors
@@ -205,10 +215,11 @@ async function hydrateTranscripts(newMarkets: DigestItem[]): Promise<void> {
  */
 async function enrichWithCreditTracking(
   newMarkets: DigestItem[],
-  newFun: DigestItem[]
+  newFun: DigestItem[],
+  preferenceAddendum: string = ""
 ): Promise<{ enrichedMarkets: DigestItem[]; enrichedFun: DigestItem[] }> {
   try {
-    const enrichedMarkets = await enrichMarketsItems(newMarkets);
+    const enrichedMarkets = await enrichMarketsItems(newMarkets, preferenceAddendum);
     const enrichedFun = await enrichFunItems(newFun);
     await writeCreditsStatus(null); // clear any stale credit warning
     return { enrichedMarkets, enrichedFun };

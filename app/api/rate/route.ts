@@ -13,9 +13,9 @@ export async function POST(req: Request) {
   }
 
   const { itemId, rating } = body;
-  if (!itemId || ![1, 2, 3, 4, 5].includes(rating ?? 0)) {
+  if (!itemId || ![1, 2, 3].includes(rating ?? 0)) {
     return NextResponse.json(
-      { error: "itemId required + rating must be 1..5" },
+      { error: "itemId required + rating must be 1..3 (1=demote, 2=meh, 3=love)" },
       { status: 400 }
     );
   }
@@ -27,7 +27,7 @@ export async function POST(req: Request) {
   }
 
   const record: Rating = {
-    rating: rating as 1 | 2 | 3 | 4 | 5,
+    rating: rating as 1 | 2 | 3,
     ratedAt: new Date().toISOString(),
     sourceId: item.sourceId,
     sourceName: item.sourceName,

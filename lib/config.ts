@@ -16,8 +16,10 @@ export const MIN_MARKETS_SCORE = 30;
 export const MIN_FUN_SCORE = 25;
 
 // ── ROLLING CORPUS TTL (items older than this age out before display) ──
+// "today" tab feels stale when the same article sits for 2+ days. 48h is a hard cap;
+// anything still important enough to surface gets re-evaluated by the next ingest.
 export const TTL_HOURS: Record<Cadence, number> = {
-  today: 60, // active news lingers ~2.5 days
+  today: 48, // hard 2-day cap — forces daily-publishing sources (WSJ, Bisnow, etc.) to rotate
   weekly: 60 * 24, // 60 days — monthly podcasts like Acquired stay across release cycles
   fun: 30 * 24,
 };

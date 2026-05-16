@@ -111,17 +111,32 @@ export async function writeLastUpdated(updates: LastUpdated): Promise<void> {
   fs.writeFileSync(LAST_UPDATED_PATH, JSON.stringify(merged, null, 2));
 }
 
+// Map legacy 1-5 ratings (originally that scale) to the current 1-3 system:
+//   5,4 → 3 (love), 3 → 2 (meh), 2,1 → 1 (demote). Re-saving a 1-5 rating from an
+//   old client overwrites cleanly on the next /api/rate call.
+function coerceRating(n: number): 1 | 2 | 3 {
+  if (n >= 4) return 3;
+  if (n === 3) return 2;
+  return 1;
+}
+
 export async function readRatings(): Promise<RatingsMap> {
+  let raw: RatingsMap;
   if (useKv) {
     const kv = await getKv();
-    return (await kv.get<RatingsMap>(KV_RATINGS_KEY)) ?? {};
+    raw = (await kv.get<RatingsMap>(KV_RATINGS_KEY)) ?? {};
+  } else {
+    try {
+      raw = JSON.parse(fs.readFileSync(RATINGS_PATH, "utf-8")) as RatingsMap;
+    } catch {
+      return {};
+    }
   }
-  try {
-    const raw = fs.readFileSync(RATINGS_PATH, "utf-8");
-    return JSON.parse(raw) as RatingsMap;
-  } catch {
-    return {};
+  const out: RatingsMap = {};
+  for (const [id, r] of Object.entries(raw)) {
+    out[id] = { ...r, rating: coerceRating(r.rating as number) };
   }
+  return out;
 }
 
 export async function upsertRating(itemId: string, rating: Rating): Promise<void> {
