@@ -10,7 +10,6 @@ import type {
   Rating,
   RatingsMap,
   TrendsBundle,
-  UsageStats,
 } from "./types";
 
 export type { CreditsStatus } from "./types"; // re-export for back-compat with existing imports
@@ -33,8 +32,6 @@ const KV_OVERVIEW_KEY = "overview";
 const OVERVIEW_PATH = path.join(DATA_DIR, "overview.json");
 const KV_CREDITS_KEY = "credits_status";
 const CREDITS_PATH = path.join(DATA_DIR, "credits-status.json");
-const KV_USAGE_KEY = "usage_stats";
-const USAGE_PATH = path.join(DATA_DIR, "usage-stats.json");
 
 async function getKv() {
   const { kv } = await import("@vercel/kv");
@@ -165,31 +162,6 @@ export async function writeCreditsStatus(status: CreditsStatus): Promise<void> {
   } else {
     fs.writeFileSync(CREDITS_PATH, JSON.stringify(status, null, 2));
   }
-}
-
-// ── USAGE STATS (running Claude token tally) ──
-
-export async function readUsageStats(): Promise<UsageStats | null> {
-  if (useKv) {
-    const kv = await getKv();
-    return (await kv.get<UsageStats>(KV_USAGE_KEY)) ?? null;
-  }
-  try {
-    const raw = fs.readFileSync(USAGE_PATH, "utf-8");
-    return JSON.parse(raw) as UsageStats;
-  } catch {
-    return null;
-  }
-}
-
-export async function writeUsageStats(stats: UsageStats): Promise<void> {
-  if (useKv) {
-    const kv = await getKv();
-    await kv.set(KV_USAGE_KEY, stats);
-    return;
-  }
-  fs.mkdirSync(DATA_DIR, { recursive: true });
-  fs.writeFileSync(USAGE_PATH, JSON.stringify(stats, null, 2));
 }
 
 // ── OVERVIEW (Claude-synthesized morning briefing) ──

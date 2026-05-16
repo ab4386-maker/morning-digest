@@ -75,16 +75,6 @@ export type CreditsStatus = {
   message: string;
 } | null;
 
-// Running tally of Anthropic API token usage. Each Claude call adds to this.
-// Reset via /api/reset-usage when user refills credits.
-export type UsageStats = {
-  totalInputTokens: number;
-  totalOutputTokens: number;
-  totalCalls: number;
-  resetAt: string; // ISO date — usage counted since this timestamp
-  lastUpdated: string;
-};
-
 export type Trend = {
   id: string;
   title: string;

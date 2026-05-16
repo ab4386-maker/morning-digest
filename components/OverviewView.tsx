@@ -1,8 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useState } from "react";
-import type { CreditsStatus, Overview, UsageStats } from "@/lib/types";
+import type { CreditsStatus, Overview } from "@/lib/types";
 
 const SECTIONS: { key: keyof Overview; label: string; tone: "primary" | "secondary" | "tertiary" }[] = [
   { key: "today", label: "Today", tone: "primary" },
@@ -13,20 +11,14 @@ const SECTIONS: { key: keyof Overview; label: string; tone: "primary" | "seconda
   { key: "fun", label: "Fun", tone: "tertiary" },
 ];
 
-// Haiku 4.5 pricing for the corner-widget cost estimate
-const HAIKU_INPUT_PER_M = 1.0;
-const HAIKU_OUTPUT_PER_M = 5.0;
-
 export function OverviewView({
   overview,
   generatedAt,
   creditsStatus,
-  usageStats,
 }: {
   overview: Overview | null;
   generatedAt: string | null;
   creditsStatus: CreditsStatus;
-  usageStats: UsageStats | null;
 }) {
   if (!overview) {
     return (
@@ -51,8 +43,6 @@ export function OverviewView({
 
   return (
     <div className="relative mx-auto max-w-3xl">
-      <UsageWidget usageStats={usageStats} />
-
       {creditsStatus?.exhausted && (
         <div className="mb-5 rounded-lg border-2 border-red-600 bg-red-50 p-5 dark:bg-red-950/50">
           <p className="text-lg font-bold uppercase tracking-wide text-red-700 dark:text-red-300">
@@ -119,49 +109,6 @@ export function OverviewView({
           );
         })}
       </article>
-    </div>
-  );
-}
-
-function UsageWidget({ usageStats }: { usageStats: UsageStats | null }) {
-  const router = useRouter();
-  const [resetting, setResetting] = useState(false);
-
-  if (!usageStats || usageStats.totalCalls === 0) return null;
-
-  const cost =
-    (usageStats.totalInputTokens / 1_000_000) * HAIKU_INPUT_PER_M +
-    (usageStats.totalOutputTokens / 1_000_000) * HAIKU_OUTPUT_PER_M;
-  const since = new Date(usageStats.resetAt).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-  });
-
-  const onReset = async () => {
-    if (!confirm("Reset usage counter? Do this after you refill Anthropic credits.")) return;
-    setResetting(true);
-    try {
-      await fetch("/api/reset-usage", { method: "POST" });
-      router.refresh();
-    } finally {
-      setResetting(false);
-    }
-  };
-
-  return (
-    <div className="float-right ml-3 mb-3 rounded-md border bg-white px-3 py-2 text-right text-[11px] leading-tight text-stone-600 shadow-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400">
-      <p className="font-semibold tabular-nums text-stone-900 dark:text-stone-50">
-        ≈ ${cost.toFixed(2)}
-      </p>
-      <p>API spend since {since}</p>
-      <p className="text-[10px] text-stone-400">{usageStats.totalCalls} Claude calls</p>
-      <button
-        onClick={onReset}
-        disabled={resetting}
-        className="mt-1 text-[10px] uppercase tracking-wider text-stone-400 hover:text-blue-600 disabled:opacity-40"
-      >
-        {resetting ? "…" : "Reset"}
-      </button>
     </div>
   );
 }

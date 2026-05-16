@@ -7,7 +7,6 @@ import {
   readOverview,
   readRatings,
   readTrends,
-  readUsageStats,
 } from "@/lib/store";
 import { MOCK_ITEMS } from "@/lib/mock-data";
 import { SOURCES } from "@/lib/sources";
@@ -15,7 +14,7 @@ import { SOURCES } from "@/lib/sources";
 export const dynamic = "force-dynamic";
 
 export default async function Page() {
-  const [items, trendsBundle, lastUpdated, ratings, earningsGrids, overviewBundle, creditsStatus, usageStats] =
+  const [items, trendsBundle, lastUpdated, ratings, earningsGrids, overviewBundle, creditsStatus] =
     await Promise.all([
       readItems(),
       readTrends(),
@@ -24,7 +23,6 @@ export default async function Page() {
       readAllEarningsGrids(),
       readOverview(),
       readCreditsStatus(),
-      readUsageStats(),
     ]);
 
   const gmailConfigured = !!process.env.GMAIL_APP_PASSWORD;
@@ -41,7 +39,6 @@ export default async function Page() {
       overview={overviewBundle?.overview ?? null}
       overviewGeneratedAt={overviewBundle?.generatedAt ?? null}
       creditsStatus={creditsStatus}
-      usageStats={usageStats}
       gmailConfigured={gmailConfigured}
     />
   );

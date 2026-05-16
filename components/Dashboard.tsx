@@ -11,7 +11,6 @@ import type {
   Source,
   TabId,
   Trend,
-  UsageStats,
 } from "@/lib/types";
 import { effectiveImportance } from "@/lib/scoring";
 
@@ -44,7 +43,6 @@ export function Dashboard({
   overview,
   overviewGeneratedAt,
   creditsStatus,
-  usageStats,
   gmailConfigured,
 }: {
   items: DigestItem[];
@@ -57,7 +55,6 @@ export function Dashboard({
   overview: Overview | null;
   overviewGeneratedAt: string | null;
   creditsStatus: CreditsStatus;
-  usageStats: UsageStats | null;
   gmailConfigured: boolean;
 }) {
   const [tab, setTab] = useState<Tab>("overview");
@@ -135,7 +132,6 @@ export function Dashboard({
           overview={overview}
           overviewGeneratedAt={overviewGeneratedAt}
           creditsStatus={creditsStatus}
-          usageStats={usageStats}
           trends={trends}
           trendsUpdatedAt={trendsUpdatedAt}
           earningsGrids={earningsGrids}
@@ -212,7 +208,6 @@ function TabContent({
   overview,
   overviewGeneratedAt,
   creditsStatus,
-  usageStats,
   trends,
   trendsUpdatedAt,
   earningsGrids,
@@ -226,7 +221,6 @@ function TabContent({
   overview: Overview | null;
   overviewGeneratedAt: string | null;
   creditsStatus: CreditsStatus;
-  usageStats: UsageStats | null;
   trends: Trend[];
   trendsUpdatedAt: string | null;
   earningsGrids: EarningsGrid[];
@@ -238,7 +232,6 @@ function TabContent({
         overview={overview}
         generatedAt={overviewGeneratedAt}
         creditsStatus={creditsStatus}
-        usageStats={usageStats}
       />
     );
   }

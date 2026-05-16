@@ -3,7 +3,6 @@ import type { Cadence, DigestItem, ItemKind } from "./types";
 import { USER_PROFILE, FUN_PROFILE } from "./profile";
 import { ENRICH_BATCH_SIZE, ENRICH_CONCURRENCY, ENRICH_MAX_TOKENS } from "./config";
 import { parseJsonArray } from "./json-utils";
-import { trackUsage } from "./usage-tracker";
 
 let _client: Anthropic | null = null;
 function client() {
@@ -123,10 +122,6 @@ async function runEnrich(prompt: string): Promise<Enrichment[]> {
     model: "claude-haiku-4-5-20251001",
     max_tokens: ENRICH_MAX_TOKENS,
     messages: [{ role: "user", content: prompt }],
-  });
-  await trackUsage({
-    input_tokens: resp.usage.input_tokens,
-    output_tokens: resp.usage.output_tokens,
   });
   const block = resp.content.find((b) => b.type === "text");
   const text = block && block.type === "text" ? block.text : "[]";

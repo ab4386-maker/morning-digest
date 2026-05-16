@@ -51,10 +51,6 @@ export type IngestResult = {
   mode: IngestMode;
 };
 
-const BREAKDOWN_SOURCE_IDS = new Set(
-  SOURCES.filter((s) => s.tab === "breakdowns").map((s) => s.id)
-);
-
 const SOURCE_TAB_MAP = new Map(SOURCES.map((s) => [s.id, s.tab]));
 const tabOf = (item: DigestItem) => SOURCE_TAB_MAP.get(item.sourceId);
 
@@ -155,8 +151,8 @@ async function fetchAllSources(
   const funRaw: DigestItem[] = [];
 
   for (const source of SOURCES) {
-    // Skip podcast fetches on afternoon/evening runs.
-    if (mode === "news-only" && BREAKDOWN_SOURCE_IDS.has(source.id)) continue;
+    // Skip all podcasts (incl. WSB) on the afternoon run — they only publish daily/weekly.
+    if (mode === "news-only" && PODCAST_SOURCE_IDS.has(source.id)) continue;
 
     if (source.kind === "rss") {
       console.log(`[pipeline] ${source.name}…`);

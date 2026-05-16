@@ -73,8 +73,8 @@ async function fetchEmailsFromSender(
 export async function ingestEmail(source: Source): Promise<DigestItem[]> {
   if (source.kind !== "email" || !source.emailSender) return [];
 
-  // Lookback windows similar to RSS: news-frequency sources get 48h, weekly sources 14d.
-  const lookbackHours = source.defaultCadence === "weekly" ? 14 * 24 : 48;
+  // Lookback windows: daily news sources get 24h, weekly sources 14d.
+  const lookbackHours = source.defaultCadence === "weekly" ? 14 * 24 : 24;
   let emails: FetchedEmail[];
   try {
     emails = await fetchEmailsFromSender(source.emailSender, lookbackHours);
@@ -88,7 +88,7 @@ export async function ingestEmail(source: Source): Promise<DigestItem[]> {
     const ts = email.date.getTime();
     const hoursOld = (now - ts) / 3600000;
     const cadence =
-      source.defaultCadence === "weekly" ? "weekly" : hoursOld < 36 ? "today" : "weekly";
+      source.defaultCadence === "weekly" ? "weekly" : hoursOld < 24 ? "today" : "weekly";
     const importance = Math.round(source.weight * Math.max(0.15, 1 - hoursOld / 96));
 
     // Prefer text body; fall back to stripping HTML

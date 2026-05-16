@@ -2,7 +2,6 @@ import Anthropic from "@anthropic-ai/sdk";
 import type { DigestItem } from "./types";
 import { DEDUP_MAX_TOKENS } from "./config";
 import { parseJsonObject } from "./json-utils";
-import { trackUsage } from "./usage-tracker";
 
 let _client: Anthropic | null = null;
 function client() {
@@ -25,10 +24,6 @@ export async function dedupItems(items: DigestItem[]): Promise<DigestItem[]> {
     model: "claude-haiku-4-5-20251001",
     max_tokens: DEDUP_MAX_TOKENS,
     messages: [{ role: "user", content: prompt }],
-  });
-  await trackUsage({
-    input_tokens: resp.usage.input_tokens,
-    output_tokens: resp.usage.output_tokens,
   });
 
   const block = resp.content.find((b) => b.type === "text");
