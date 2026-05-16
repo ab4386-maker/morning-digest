@@ -47,6 +47,7 @@ export type IngestResult = {
   reads: number;
   breakdowns: number;
   fun: number;
+  re: number;
   trendsRegenerated: boolean;
   mode: IngestMode;
 };
@@ -118,6 +119,7 @@ export async function runIngest(opts: IngestOptions = {}): Promise<IngestResult>
     reads: route.reads.length,
     breakdowns: route.breakdowns.length,
     fun: route.fun.length,
+    re: route.re.length,
     trendsRegenerated,
     mode,
   };
@@ -139,7 +141,7 @@ async function runDedupOnly(mode: IngestMode): Promise<IngestResult> {
   const deduped = await dedupItems(current);
   await writeItems(deduped);
   return {
-    written: deduped.length, today: 0, other: 0, reads: 0, breakdowns: 0, fun: 0,
+    written: deduped.length, today: 0, other: 0, reads: 0, breakdowns: 0, fun: 0, re: 0,
     trendsRegenerated: false, mode,
   };
 }
@@ -266,6 +268,7 @@ type RouteResult = {
   reads: DigestItem[];
   breakdowns: DigestItem[];
   fun: DigestItem[];
+  re: DigestItem[];
   finalItems: DigestItem[];
 };
 
@@ -287,21 +290,22 @@ function routeAndCap(survivors: DigestItem[]): RouteResult {
   const fun = survivors
     .filter((i) => tabOf(i) === "fun" || i.cadence === "fun")
     .slice(0, CAPS.fun);
+  const re = survivors.filter((i) => tabOf(i) === "re").slice(0, CAPS.re);
 
   return {
-    today, other, reads, breakdowns, fun,
-    finalItems: [...today, ...other, ...reads, ...breakdowns, ...fun],
+    today, other, reads, breakdowns, fun, re,
+    finalItems: [...today, ...other, ...reads, ...breakdowns, ...fun, ...re],
   };
 }
 
 function logRouteSummary(r: RouteResult): void {
   console.log(
-    `[pipeline] wrote ${r.finalItems.length} items (${r.today.length} today, ${r.other.length} other, ${r.reads.length} reads, ${r.breakdowns.length} breakdowns, ${r.fun.length} fun)`
+    `[pipeline] wrote ${r.finalItems.length} items (${r.today.length} today, ${r.other.length} other, ${r.reads.length} reads, ${r.breakdowns.length} breakdowns, ${r.fun.length} fun, ${r.re.length} re)`
   );
 }
 
 function computeTabStamps(stamp: string, mode: IngestMode): LastUpdated {
-  const stamps: LastUpdated = { today: stamp, other: stamp, reads: stamp, fun: stamp };
+  const stamps: LastUpdated = { today: stamp, other: stamp, reads: stamp, fun: stamp, re: stamp };
   if (mode === "full") stamps.breakdowns = stamp;
   return stamps;
 }

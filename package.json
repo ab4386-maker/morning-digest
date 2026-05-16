@@ -20,6 +20,7 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "rss-parser": "^3.13.0",
+    "snaptrade-typescript-sdk": "^9.0.199",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {

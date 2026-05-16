@@ -199,6 +199,29 @@ export const SOURCES: Source[] = [
     tab: "breakdowns",
   },
 
+  // ── RE tab ── commercial + residential real estate news ──
+  {
+    id: "bisnow",
+    name: "Bisnow",
+    kind: "rss",
+    url: "https://www.bisnow.com/rss",
+    weight: 75,
+    defaultCadence: "today",
+    category: "markets",
+    tab: "re",
+  },
+  {
+    id: "therealdeal",
+    name: "The Real Deal",
+    kind: "rss",
+    // Yoast SEO disables the site-wide /feed/, so use the national section feed.
+    url: "https://therealdeal.com/national/feed/",
+    weight: 75,
+    defaultCadence: "today",
+    category: "markets",
+    tab: "re",
+  },
+
   // ── FUN tab ──
   {
     id: "bbc-football",

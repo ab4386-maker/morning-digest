@@ -7,6 +7,7 @@ import type {
   EarningsGrid,
   LastUpdated,
   Overview,
+  PortfolioSnapshot,
   RatingsMap,
   Source,
   TabId,
@@ -23,11 +24,12 @@ import { TrendsView } from "./TrendsView";
 import { TabButton } from "./TabButton";
 import { AddSourcePanel } from "./AddSourcePanel";
 import { RefreshButton } from "./RefreshButton";
+import { PortfolioView } from "./PortfolioView";
 
-type Tab = TabId | "features" | "trends" | "wired" | "earnings" | "overview";
+type Tab = TabId | "features" | "trends" | "wired" | "earnings" | "overview" | "portfolio";
 
 // Tabs that don't display a "last updated" line under the nav.
-const NO_UPDATED_LINE: Set<Tab> = new Set(["wired", "earnings", "overview"]);
+const NO_UPDATED_LINE: Set<Tab> = new Set(["wired", "earnings", "overview", "portfolio"]);
 
 // Tabs that only get a once-daily refresh (8am, full mode).
 const DAILY_ONLY_TABS: Set<Tab> = new Set(["breakdowns", "trends"]);
@@ -44,6 +46,9 @@ export function Dashboard({
   overviewGeneratedAt,
   creditsStatus,
   gmailConfigured,
+  portfolio,
+  portfolioConnected,
+  snapTradeConfigured,
 }: {
   items: DigestItem[];
   trends: Trend[];
@@ -56,6 +61,9 @@ export function Dashboard({
   overviewGeneratedAt: string | null;
   creditsStatus: CreditsStatus;
   gmailConfigured: boolean;
+  portfolio: PortfolioSnapshot | null;
+  portfolioConnected: boolean;
+  snapTradeConfigured: boolean;
 }) {
   const [tab, setTab] = useState<Tab>("overview");
   const [showAddSource, setShowAddSource] = useState(false);
@@ -115,8 +123,10 @@ export function Dashboard({
         <TabButton active={tab === "breakdowns"} onClick={() => setTab("breakdowns")}>Podcasts</TabButton>
         <TabButton active={tab === "trends"} onClick={() => setTab("trends")}>Trends Debunked</TabButton>
         <TabButton active={tab === "other"} onClick={() => setTab("other")}>Other News</TabButton>
+        <TabButton active={tab === "re"} onClick={() => setTab("re")}>RE</TabButton>
         <TabButton active={tab === "fun"} onClick={() => setTab("fun")}>Fun</TabButton>
         <TabButton active={tab === "earnings"} onClick={() => setTab("earnings")}>Earnings</TabButton>
+        <TabButton active={tab === "portfolio"} onClick={() => setTab("portfolio")}>Portfolio</TabButton>
         <TabButton active={tab === "wired"} onClick={() => setTab("wired")}>Wired</TabButton>
       </nav>
 
@@ -136,6 +146,9 @@ export function Dashboard({
           trendsUpdatedAt={trendsUpdatedAt}
           earningsGrids={earningsGrids}
           gmailConfigured={gmailConfigured}
+          portfolio={portfolio}
+          portfolioConnected={portfolioConnected}
+          snapTradeConfigured={snapTradeConfigured}
         />
       </main>
 
@@ -188,6 +201,9 @@ function filterItemsForTab(
     case "fun":
       filtered = items.filter((i) => tabOf(i) === "fun" || i.cadence === "fun");
       break;
+    case "re":
+      filtered = items.filter((i) => tabOf(i) === "re");
+      break;
     default:
       return [];
   }
@@ -212,6 +228,9 @@ function TabContent({
   trendsUpdatedAt,
   earningsGrids,
   gmailConfigured,
+  portfolio,
+  portfolioConnected,
+  snapTradeConfigured,
 }: {
   tab: Tab;
   visible: DigestItem[];
@@ -225,6 +244,9 @@ function TabContent({
   trendsUpdatedAt: string | null;
   earningsGrids: EarningsGrid[];
   gmailConfigured: boolean;
+  portfolio: PortfolioSnapshot | null;
+  portfolioConnected: boolean;
+  snapTradeConfigured: boolean;
 }) {
   if (tab === "overview") {
     return (
@@ -236,6 +258,14 @@ function TabContent({
     );
   }
   if (tab === "earnings") return <EarningsView grids={earningsGrids} />;
+  if (tab === "portfolio")
+    return (
+      <PortfolioView
+        snapshot={portfolio}
+        connected={portfolioConnected}
+        snapTradeConfigured={snapTradeConfigured}
+      />
+    );
   if (tab === "trends") return <TrendsView trends={trends} updatedAt={trendsUpdatedAt} />;
   if (tab === "wired")
     return <WiredView sources={sources} items={allItems} gmailConfigured={gmailConfigured} />;

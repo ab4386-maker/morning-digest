@@ -50,6 +50,10 @@ app/
     earnings/
       upload/         # POST multipart → parse xlsx → store grid
       [id]/           # DELETE grid
+    portfolio/
+      connect/        # POST → returns SnapTrade Connection Portal URL (auto-registers user on first call)
+      refresh/        # POST → pulls latest holdings from all connected brokerages, writes snapshot
+      disconnect/     # POST → deletes SnapTrade user (revokes all brokerage auths) + clears local state
 
 components/
   Dashboard.tsx       # tab shell, filterItemsForTab, TabContent, UpdatedLine
@@ -58,6 +62,7 @@ components/
   TrendsView.tsx + TrendCard.tsx
   BreakdownsView.tsx  # podcast-specific rendering with sections
   EarningsView.tsx    # xlsx upload + GridView (per-company expandable)
+  PortfolioView.tsx   # SnapTrade-backed brokerage view: KPI strip, accounts, positions table
   WiredView.tsx       # source list grouped by tab + freshness badges
   AddSourcePanel.tsx  # inline form for adding sources
   RefreshButton.tsx   # header button calling /api/refresh
@@ -80,6 +85,7 @@ lib/
   scoring.ts          # decayFactor() + effectiveImportance()
   store.ts            # KV (prod) / fs (local) reads & writes — see §5 keys
   parse-earnings-xlsx.ts  # AlphaSense Generative Grid parser
+  snaptrade.ts        # SnapTrade SDK wrapper: ensureUser / generateConnectUrl / refreshPortfolio / disconnect
   json-utils.ts       # parseJsonArray / parseJsonObject — robust Claude JSON parser
   mock-data.ts        # fallback items when KV empty
   ingest/
@@ -100,6 +106,8 @@ lib/
 | `credits_status` | `{exhausted, detectedAt, message}` or null | Red banner trigger |
 | `earnings:index` | `string[]` | Grid IDs in upload order |
 | `earnings:<id>` | `EarningsGrid` | One per uploaded xlsx |
+| `snaptrade:user` | `SnapTradeUser` | `{userId, userSecret, createdAt}` — credential, do not log |
+| `portfolio` | `PortfolioSnapshot` | Latest brokerage holdings rendered in Portfolio tab |
 
 ## 6. Pipeline flow (`lib/pipeline.ts` → `runIngest`)
 
@@ -131,12 +139,14 @@ lib/
 | Podcasts | `source.tab === "breakdowns"` |
 | Trends Debunked | (separate KV bundle) |
 | Fun | `source.tab === "fun" || cadence === "fun"` |
+| RE | `source.tab === "re"` (real estate — Bisnow, The Real Deal) |
 | Earnings | (separate `earnings:*` KV keys) |
+| Portfolio | (separate `portfolio` + `snaptrade:user` KV keys — SnapTrade integration) |
 | Wired | (all sources, grouped by tab) |
 
 Sort: `effectiveImportance(item, now)` descending — see scoring below.
 
-## 8. Sources (21 total — `lib/sources.ts`)
+## 8. Sources (23 total — `lib/sources.ts`)
 
 **Today tab (RSS news):** wsj-markets, wsj-world, wsj-us-business, wsj-tech, wsj-opinion, bloomberg-markets-rss, bloomberg-economics-rss, nyt-business-rss, ft-markets-rss, ft-companies-rss
 
@@ -148,6 +158,8 @@ Sort: `effectiveImportance(item, now)` descending — see scoring below.
 
 **Podcasts (breakdowns tab):** acquired, business-breakdowns, invest-like-the-best, all-in
 
+**Real Estate (re tab):** bisnow, therealdeal (The Real Deal — uses `national/feed/` since the site-wide `/feed/` is disabled by Yoast SEO)
+
 **Fun:** bbc-football, guardian-football
 
 Each source has: `id, name, kind ("rss"|"email"), url|emailSender, weight, defaultCadence, category, tab`.
@@ -155,7 +167,7 @@ Each source has: `id, name, kind ("rss"|"email"), url|emailSender, weight, defau
 ## 9. Tunable knobs (`lib/config.ts`)
 
 ```ts
-CAPS = { today: 25, other: 25, reads: 15, breakdowns: 15, fun: 12 }
+CAPS = { today: 25, other: 25, reads: 15, breakdowns: 15, fun: 12, re: 15 }
 MIN_MARKETS_SCORE = 30
 MIN_FUN_SCORE = 25
 TTL_HOURS = { today: 60, weekly: 60*24, fun: 30*24 }   // hours
@@ -233,6 +245,8 @@ UTC times = 8am + 6pm ET during EDT (US daylight savings). Reminder: Vercel Hobb
 | `GMAIL_APP_PASSWORD` | 16-char Gmail app password — used for both IMAP read and SMTP send |
 | `EMAIL_RECIPIENT` | Comma-separated: `ab4386@princeton.edu,lalitricha@gmail.com,aanabansal@gmail.com` |
 | `COLOSSUS_COOKIE` | Session cookie for Colossus transcript scraping (Wordfence-gated) |
+| `SNAPTRADE_CLIENT_ID` | SnapTrade Client ID (from snaptrade.com dashboard) — Portfolio tab |
+| `SNAPTRADE_CONSUMER_KEY` | SnapTrade Consumer Key — pair with Client ID, treat as a secret |
 | `KV_REST_API_URL`, `KV_REST_API_TOKEN`, `KV_REST_API_READ_ONLY_TOKEN`, `KV_URL` | Auto-injected by Vercel KV |
 
 ## 14. Important design decisions (don't undo these without thought)
@@ -246,6 +260,7 @@ UTC times = 8am + 6pm ET during EDT (US daylight savings). Reminder: Vercel Hobb
 - **Apollo Sløk's correct sender is `agm@apollo.com`**, not the analyst's personal address.
 - **Manual refresh button (`/api/refresh`) sets `sendEmail: false`** so iterating during the day doesn't spam recipients.
 - **Dashboard default tab is `overview`**, not `today`.
+- **Portfolio tab is fully separate from the news pipeline.** Doesn't run on crons, doesn't use Claude. SnapTrade hosts the brokerage OAuth — we never see passwords. `snaptrade:user.userSecret` is a credential (treat like an API key). Disconnect uses `authentication.deleteSnapTradeUser`, which revokes every linked brokerage at once.
 
 ## 15. Common gotchas
 
@@ -256,6 +271,9 @@ UTC times = 8am + 6pm ET during EDT (US daylight savings). Reminder: Vercel Hobb
 - **Adding a new source**: edit `lib/sources.ts` and redeploy. Source IDs are kebab-case and used as KV cache keys, so don't rename existing ones without migrating.
 - **Type-check before committing**: `npx tsc --noEmit`. CI doesn't currently block on this.
 - **Dark mode** flips at hour ≥ 19 or < 7 (local browser time), via `components/ThemeManager.tsx`. Uses `suppressHydrationWarning` on `<html>` to avoid SSR flash.
+- **SnapTrade Connection Portal URLs expire in 5 min.** If the user lingers on the connect page they need to click "Connect" again to get a fresh URL. The portal redirects back to `/?tab=portfolio&connected=1` after success.
+- **SnapTrade brokerage data is brokerage-delayed.** Robinhood pushes prices once per minute or so during market hours, much slower after-hours. The "Refresh" button just re-fetches what SnapTrade has cached — it doesn't force the brokerage to repoll.
+- **SnapTrade returns HTTP 410 for deprecated endpoints.** `getAllUserHoldings`, `getUserHoldings`, and `listUserAccounts` are all dead — use the connection-scoped chain instead: `connections.listBrokerageAuthorizations` → `connections.listBrokerageAuthorizationAccounts` → `accountInformation.getUserAccountPositions` + `getUserAccountBalance` per account. `lib/snaptrade.ts:refreshPortfolio` already does this. If a future SDK upgrade marks more endpoints `@deprecated`, expect them to start returning 410 soon after.
 
 ## 16. Outstanding ideas / known gaps
 

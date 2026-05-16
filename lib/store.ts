@@ -7,8 +7,10 @@ import type {
   EarningsIndex,
   LastUpdated,
   OverviewBundle,
+  PortfolioSnapshot,
   Rating,
   RatingsMap,
+  SnapTradeUser,
   TrendsBundle,
 } from "./types";
 
@@ -264,4 +266,77 @@ export async function deleteEarningsGrid(id: string): Promise<void> {
   } else {
     fs.writeFileSync(EARNINGS_INDEX_PATH, JSON.stringify(filtered, null, 2));
   }
+}
+
+// ── PORTFOLIO (SnapTrade) ──
+// `snaptrade:user` holds the user-secret created on first connect — treat as a credential.
+// `portfolio` holds the most recent holdings snapshot rendered in the Portfolio tab.
+
+const KV_SNAPTRADE_USER_KEY = "snaptrade:user";
+const KV_PORTFOLIO_KEY = "portfolio";
+const SNAPTRADE_USER_PATH = path.join(DATA_DIR, "snaptrade-user.json");
+const PORTFOLIO_PATH = path.join(DATA_DIR, "portfolio.json");
+
+export async function readSnapTradeUser(): Promise<SnapTradeUser | null> {
+  if (useKv) {
+    const kv = await getKv();
+    return (await kv.get<SnapTradeUser>(KV_SNAPTRADE_USER_KEY)) ?? null;
+  }
+  try {
+    const raw = fs.readFileSync(SNAPTRADE_USER_PATH, "utf-8");
+    return JSON.parse(raw) as SnapTradeUser;
+  } catch {
+    return null;
+  }
+}
+
+export async function writeSnapTradeUser(user: SnapTradeUser): Promise<void> {
+  if (useKv) {
+    const kv = await getKv();
+    await kv.set(KV_SNAPTRADE_USER_KEY, user);
+    return;
+  }
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+  fs.writeFileSync(SNAPTRADE_USER_PATH, JSON.stringify(user, null, 2));
+}
+
+export async function deleteSnapTradeUser(): Promise<void> {
+  if (useKv) {
+    const kv = await getKv();
+    await kv.del(KV_SNAPTRADE_USER_KEY);
+    return;
+  }
+  try { fs.unlinkSync(SNAPTRADE_USER_PATH); } catch {}
+}
+
+export async function readPortfolio(): Promise<PortfolioSnapshot | null> {
+  if (useKv) {
+    const kv = await getKv();
+    return (await kv.get<PortfolioSnapshot>(KV_PORTFOLIO_KEY)) ?? null;
+  }
+  try {
+    const raw = fs.readFileSync(PORTFOLIO_PATH, "utf-8");
+    return JSON.parse(raw) as PortfolioSnapshot;
+  } catch {
+    return null;
+  }
+}
+
+export async function writePortfolio(snapshot: PortfolioSnapshot): Promise<void> {
+  if (useKv) {
+    const kv = await getKv();
+    await kv.set(KV_PORTFOLIO_KEY, snapshot);
+    return;
+  }
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+  fs.writeFileSync(PORTFOLIO_PATH, JSON.stringify(snapshot, null, 2));
+}
+
+export async function deletePortfolio(): Promise<void> {
+  if (useKv) {
+    const kv = await getKv();
+    await kv.del(KV_PORTFOLIO_KEY);
+    return;
+  }
+  try { fs.unlinkSync(PORTFOLIO_PATH); } catch {}
 }

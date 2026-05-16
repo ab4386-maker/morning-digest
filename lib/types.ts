@@ -1,6 +1,6 @@
 export type Cadence = "today" | "weekly" | "fun";
 export type Category = "markets" | "fun";
-export type TabId = "today" | "reads" | "breakdowns" | "fun" | "other";
+export type TabId = "today" | "reads" | "breakdowns" | "fun" | "other" | "re";
 // Sub-classification for news items so Today stays strict (breaking only)
 // and feature/analysis articles route to their own tab.
 export type ItemKind = "breaking" | "feature";
@@ -101,6 +101,51 @@ export type Source = {
   defaultCadence?: Cadence;
   category?: Category;
   tab?: TabId;
+};
+
+// ── PORTFOLIO (SnapTrade-backed brokerage read-only view) ──
+
+// Per-user SnapTrade credentials. Created once on first connect; persisted in KV.
+export type SnapTradeUser = {
+  userId: string;
+  userSecret: string;
+  createdAt: string;
+};
+
+export type PortfolioPosition = {
+  symbol: string;            // e.g., "NVDA"
+  description?: string;      // company name from brokerage
+  units: number;             // share count (can be fractional)
+  price: number;             // last known mark
+  marketValue: number;       // units * price
+  costBasis?: number;        // average_purchase_price * units (if available)
+  unrealizedPnl?: number;    // open_pnl from brokerage, or computed
+  unrealizedPnlPct?: number; // unrealizedPnl / costBasis
+  weight: number;            // marketValue / portfolio totalEquity
+  accountId: string;         // SnapTrade account id (so multi-account aggregation can be debugged)
+  currency: string;          // ISO code
+  type?: string;             // SecurityType label (e.g., "Common Stock", "Crypto")
+};
+
+export type PortfolioAccount = {
+  id: string;
+  name: string;              // e.g., "Individual" or "Roth IRA"
+  institution: string;       // e.g., "Robinhood"
+  number?: string;           // masked account number
+  cash: number;              // USD cash sitting in account
+  equity: number;            // sum of position market values in this account
+  total: number;             // cash + equity
+};
+
+export type PortfolioSnapshot = {
+  generatedAt: string;
+  totalEquity: number;       // sum of all position market values across accounts
+  totalCash: number;         // sum of all account cash
+  totalValue: number;        // totalEquity + totalCash
+  totalCostBasis: number;    // sum of costBasis where known (used for unrealized P&L %)
+  totalUnrealizedPnl: number;
+  accounts: PortfolioAccount[];
+  positions: PortfolioPosition[];  // already sorted by weight desc
 };
 
 export type DigestItem = {

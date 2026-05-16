@@ -8,6 +8,7 @@ export const CAPS = {
   reads: 15,
   breakdowns: 15,
   fun: 12,
+  re: 15,
 } as const;
 
 // ── SCORE FLOORS (filter out below) ──

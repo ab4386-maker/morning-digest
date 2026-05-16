@@ -5,7 +5,9 @@ import {
   readItems,
   readLastUpdated,
   readOverview,
+  readPortfolio,
   readRatings,
+  readSnapTradeUser,
   readTrends,
 } from "@/lib/store";
 import { MOCK_ITEMS } from "@/lib/mock-data";
@@ -14,18 +16,31 @@ import { SOURCES } from "@/lib/sources";
 export const dynamic = "force-dynamic";
 
 export default async function Page() {
-  const [items, trendsBundle, lastUpdated, ratings, earningsGrids, overviewBundle, creditsStatus] =
-    await Promise.all([
-      readItems(),
-      readTrends(),
-      readLastUpdated(),
-      readRatings(),
-      readAllEarningsGrids(),
-      readOverview(),
-      readCreditsStatus(),
-    ]);
+  const [
+    items,
+    trendsBundle,
+    lastUpdated,
+    ratings,
+    earningsGrids,
+    overviewBundle,
+    creditsStatus,
+    portfolio,
+    snapTradeUser,
+  ] = await Promise.all([
+    readItems(),
+    readTrends(),
+    readLastUpdated(),
+    readRatings(),
+    readAllEarningsGrids(),
+    readOverview(),
+    readCreditsStatus(),
+    readPortfolio(),
+    readSnapTradeUser(),
+  ]);
 
   const gmailConfigured = !!process.env.GMAIL_APP_PASSWORD;
+  const snapTradeConfigured =
+    !!process.env.SNAPTRADE_CLIENT_ID && !!process.env.SNAPTRADE_CONSUMER_KEY;
 
   return (
     <Dashboard
@@ -40,6 +55,9 @@ export default async function Page() {
       overviewGeneratedAt={overviewBundle?.generatedAt ?? null}
       creditsStatus={creditsStatus}
       gmailConfigured={gmailConfigured}
+      portfolio={portfolio}
+      portfolioConnected={!!snapTradeUser}
+      snapTradeConfigured={snapTradeConfigured}
     />
   );
 }
