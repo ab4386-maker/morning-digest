@@ -1,12 +1,6 @@
-// Local + GitHub Actions entry point for runIngest. In CI we don't have .env.local —
-// secrets are injected via GitHub Actions secrets, so dotenv loading is only attempted
-// (and silently skipped) if the file is missing.
-import dotenv from "dotenv";
-import fs from "node:fs";
-if (fs.existsSync(".env.local")) {
-  dotenv.config({ path: ".env.local", override: true });
-}
-
+// Local + GitHub Actions entry point for runIngest.
+// Env loading is automatic: tsx auto-injects .env.local when present (local dev),
+// and GitHub Actions secrets are set as process.env directly (CI). No dotenv needed.
 import { runIngest } from "../lib/pipeline";
 import type { IngestMode } from "../lib/pipeline";
 
