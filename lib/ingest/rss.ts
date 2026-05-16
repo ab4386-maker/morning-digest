@@ -25,12 +25,13 @@ export async function ingestRss(source: Source): Promise<DigestItem[]> {
   const now = Date.now();
   const cutoff = now - RSS_LOOKBACK_DAYS * 86400000;
 
+  const cap = source.itemsPerFeed ?? RSS_ITEMS_PER_FEED;
   return feed.items
     .filter((item) => {
       const ts = item.pubDate ? new Date(item.pubDate).getTime() : 0;
       return ts > cutoff;
     })
-    .slice(0, RSS_ITEMS_PER_FEED)
+    .slice(0, cap)
     .map((item) => {
       const ts = item.pubDate ? new Date(item.pubDate).getTime() : now;
       const hoursOld = (now - ts) / 3600000;

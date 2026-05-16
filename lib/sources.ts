@@ -61,6 +61,7 @@ export const SOURCES: Source[] = [
     defaultCadence: "today",
     category: "markets",
     tab: "today",
+    itemsPerFeed: 15, // high-volume core feed
   },
   {
     id: "bloomberg-economics-rss",
@@ -81,6 +82,7 @@ export const SOURCES: Source[] = [
     defaultCadence: "today",
     category: "markets",
     tab: "today",
+    itemsPerFeed: 15, // high-volume core feed
   },
   {
     id: "ft-markets-rss",
@@ -209,6 +211,7 @@ export const SOURCES: Source[] = [
     defaultCadence: "today",
     category: "markets",
     tab: "re",
+    itemsPerFeed: 20, // dedicated RE tab + Bisnow publishes ~15/day
   },
   {
     id: "therealdeal",
@@ -220,6 +223,7 @@ export const SOURCES: Source[] = [
     defaultCadence: "today",
     category: "markets",
     tab: "re",
+    itemsPerFeed: 15, // RE companion
   },
 
   // ── FUN tab ──
@@ -232,6 +236,7 @@ export const SOURCES: Source[] = [
     defaultCadence: "fun",
     category: "fun",
     tab: "fun",
+    itemsPerFeed: 5, // Fun tab — 5 share-worthy items is plenty
   },
   {
     id: "guardian-football",
@@ -242,5 +247,6 @@ export const SOURCES: Source[] = [
     defaultCadence: "fun",
     category: "fun",
     tab: "fun",
+    itemsPerFeed: 5,
   },
 ];

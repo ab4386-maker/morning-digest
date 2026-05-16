@@ -102,6 +102,9 @@ export type Source = {
   defaultCadence?: Cadence;
   category?: Category;
   tab?: TabId;
+  // Optional per-fetch cap override. Falls back to RSS_ITEMS_PER_FEED in config.ts
+  // when unset. Bump for high-volume / high-priority feeds; trim for low-priority.
+  itemsPerFeed?: number;
 };
 
 // ── PORTFOLIO (SnapTrade-backed brokerage read-only view) ──

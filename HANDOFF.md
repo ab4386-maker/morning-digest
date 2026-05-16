@@ -162,7 +162,15 @@ Sort: `effectiveImportance(item, now)` descending — see scoring below.
 
 **Fun:** bbc-football, guardian-football
 
-Each source has: `id, name, kind ("rss"|"email"), url|emailSender, weight, defaultCadence, category, tab`.
+Each source has: `id, name, kind ("rss"|"email"), url|emailSender, weight, defaultCadence, category, tab, itemsPerFeed?`.
+
+`itemsPerFeed?` overrides the global `RSS_ITEMS_PER_FEED` cap for that specific source. Current overrides:
+- Bisnow: 20 (RE tab, ~15/day publish rate)
+- The Real Deal: 15 (RE companion)
+- Bloomberg — Markets: 15 (high-volume core L/S feed)
+- NYT — Business: 15 (same)
+- BBC Football / Guardian Football: 5 (Fun tab — 5 is plenty)
+- Everything else: defaults to 10
 
 ## 9. Tunable knobs (`lib/config.ts`)
 
