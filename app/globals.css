@@ -1,0 +1,42 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #f7f7f5;
+  --surface: #ffffff;
+  --border: #e5e3e0;
+  --text: #11100f;
+  --muted: #6e6a64;
+  --accent: #c11414;
+}
+
+html.dark {
+  --bg: #0c0c0a;
+  --surface: #17171514;
+  --border: #2a2a27;
+  --text: #f5f4f0;
+  --muted: #8a857a;
+  --accent: #e5524d;
+}
+
+html, body {
+  background: var(--bg);
+  color: var(--text);
+  font-feature-settings: "ss01", "ss03", "cv11";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+* {
+  border-color: var(--border);
+}
+
+/* Apple News–style editorial serif headlines */
+.headline-serif {
+  font-family: ui-serif, "New York", Charter, "Source Serif Pro", Georgia, Cambria, "Times New Roman", Times, serif;
+  letter-spacing: -0.011em;
+  font-feature-settings: "ss01", "kern";
+}
