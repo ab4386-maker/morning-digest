@@ -6,7 +6,9 @@ import { parseJsonArray } from "./json-utils";
 
 let _client: Anthropic | null = null;
 function client() {
-  if (!_client) _client = new Anthropic();
+  // maxRetries 6 with default exponential backoff (~0.5s, 1s, 2s, 4s, 8s, 16s) gives
+  // ~30s of retry runway, enough to slide over a 429 burst on Tier 1's 10K/min cap.
+  if (!_client) _client = new Anthropic({ maxRetries: 6 });
   return _client;
 }
 

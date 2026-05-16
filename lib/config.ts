@@ -35,7 +35,10 @@ export const FULL_CONTENT_MAX_CHARS = 30000;
 
 // ── CLAUDE ENRICHMENT ──
 export const ENRICH_BATCH_SIZE = 5;
-export const ENRICH_CONCURRENCY = 3; // Tier 1 rate-limit safe (10k output tok/min)
+// Concurrency 2 keeps us under Tier 1's 10K output-tokens/minute cap with headroom for
+// the bigger per-feed item counts (RSS_ITEMS_PER_FEED=25) + the feedback memory addendum.
+// Bump to 3 only after upgrading to a higher Anthropic tier.
+export const ENRICH_CONCURRENCY = 2;
 export const ENRICH_MAX_TOKENS = 8000;
 
 // ── DEDUP ──
