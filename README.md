@@ -1,4 +1,4 @@
-# Morning Digest
+# Abhi's Daily Digest
 
 A personal information dashboard. Each morning a job pulls items from your favorite newsletters, RSS feeds, and inboxes, summarizes them with Claude, ranks them by importance, and shows the result on a clean web page.
 
