@@ -82,10 +82,23 @@ saw. If an item is genuinely the same story with no new angle, skip it. If a sto
 has progressed (e.g., new data, new reaction, new players), call that out
 explicitly with phrasing like "Update on…" or "New: …".
 
-Aim for a SHORTER briefing if there's less truly new ground — 5-8 today bullets
-is fine if only that much is genuinely fresh. Quality > quantity.
+** THIS APPLIES EQUALLY TO EVERY SECTION — today, features, re, substacks, trends, fun **
+Features is the section where this rule gets violated most often. If the morning
+briefing already covered "AI chip cycle", "India AI laggard", "AWS $200B capex", etc.,
+DO NOT include them again in evening Features even if they fit the "analytical read"
+slot. Pick different angles entirely, or leave the section short.
 
-MORNING BRIEFING (already sent to user at ${priorTime} ET — do not repeat unless materially developed):
+OVERRIDE the per-section bullet count minimums when there's not enough net new:
+  - today: 4-8 is fine (down from 7-10) if only that much is truly fresh
+  - features: 0-4 is fine (down from 5-7) — DON'T fill the slot with repeats
+  - re: 2-5 is fine (down from 3-5)
+  - substacks: 1-4 is fine (down from 3-5)
+  - fun: 0-2 is fine
+
+Quality > quota. A 4-bullet section of genuinely new material beats a 7-bullet
+section that's 5 repeats + 2 new.
+
+MORNING BRIEFING (already sent to user at ${priorTime} ET — do not repeat in ANY section unless materially developed):
 
 ${priorRendered}
 ────────────────────────────────────────────────────────────────────────
