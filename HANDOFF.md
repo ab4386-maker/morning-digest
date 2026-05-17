@@ -147,7 +147,7 @@ lib/
 
 Sort: `effectiveImportance(item, now)` descending — see scoring below.
 
-## 8. Sources (23 total — `lib/sources.ts`)
+## 8. Sources (25 total — `lib/sources.ts`)
 
 **Today tab (RSS news):** wsj-markets, wsj-world, wsj-us-business, wsj-tech, wsj-opinion, bloomberg-markets-rss, bloomberg-economics-rss, nyt-business-rss, ft-markets-rss, ft-companies-rss
 
@@ -155,7 +155,7 @@ Sort: `effectiveImportance(item, now)` descending — see scoring below.
 
 **Today tab (email):** apollo-slok (sender `agm@apollo.com`, only ingests if `GMAIL_APP_PASSWORD` set)
 
-**Substacks (reads tab):** clouded-judgement, citrini, irrational-analysis
+**Substacks (reads tab):** clouded-judgement, citrini, irrational-analysis, mbi-deepdives, a16z-newmedia (currently empty feed — kept wired for when they publish)
 
 **Podcasts (breakdowns tab):** acquired, business-breakdowns, invest-like-the-best, all-in
 

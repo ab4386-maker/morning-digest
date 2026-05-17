@@ -158,6 +158,29 @@ export const SOURCES: Source[] = [
     category: "markets",
     tab: "reads",
   },
+  {
+    id: "mbi-deepdives",
+    name: "MBI Deep Dives",
+    kind: "rss",
+    url: "https://www.mbi-deepdives.com/feed",
+    weight: 82,
+    defaultCadence: "today",
+    category: "markets",
+    tab: "reads",
+  },
+  {
+    // a16z New Media — feed exists but was empty as of wiring (no published items
+    // and itunes:block=Yes). Kept here so when they start publishing the source
+    // auto-flows into the Substacks tab without needing a code change.
+    id: "a16z-newmedia",
+    name: "a16z New Media",
+    kind: "rss",
+    url: "https://a16znewmedia.substack.com/feed",
+    weight: 78,
+    defaultCadence: "weekly",
+    category: "markets",
+    tab: "reads",
+  },
 
   // ── BUSINESS BREAKDOWNS tab ── long-form deep-dive content ──
   {
