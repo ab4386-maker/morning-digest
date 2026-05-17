@@ -16,7 +16,7 @@ A personal news/research dashboard for a Princeton undergrad in a long/short equ
 - React 18.3.1, TypeScript, Tailwind 3.4 (`darkMode: 'class'`)
 - Claude Haiku 4.5 (`claude-haiku-4-5-20251001`) — $1/Mtok in, $5/Mtok out
 - Vercel KV (Upstash Redis) for persistent state; falls back to `data/*.json` locally
-- Vercel cron (Hobby plan: 2 entries, each ≤1×/day)
+- **Crons run on GitHub Actions**, triggered by cron-job.org (Vercel's `schedule:` is unreliable — see §12)
 - `imapflow` + `mailparser` (Gmail IMAP read), `nodemailer` (Gmail SMTP send, port 465)
 - `cheerio` for HTML scraping, `xlsx` (SheetJS) for AlphaSense grids, `rss-parser` for feeds
 
@@ -40,13 +40,12 @@ app/
   globals.css         # light + dark CSS vars with transition
   api/
     refresh/          # POST → runIngest({sendEmail:false}) for the "Refresh now" button
-    ask/              # POST → Claude chat per card ("Ask about this")
-    rate/             # POST → upsert 1-5 rating
-    sources/          # POST → add new source at runtime (writes to SOURCES list? actually KV-backed)
-    click/            # POST → bump click count (kept for future personalization)
+    ask/              # POST → Claude chat per card ("Ask about this") — has web_search tool
+    rate/             # POST → upsert 1-3 rating (3=love, 2=meh, 1=demote)
+    sources/          # POST → add new source at runtime (stub — logs only, no persist)
+    click/            # POST → bump click count (stub — logs only, kept for future personalization)
     cron/
-      full/           # 8am ET — full ingest, sends email if user-agent is vercel-cron
-      news-only/      # 6pm ET — RSS news only, skips podcasts, sends email if vercel-cron
+      trigger/        # POST → validates X-Trigger-Secret, calls GH workflow_dispatch (cron-job.org hits this)
     earnings/
       upload/         # POST multipart → parse xlsx → store grid
       [id]/           # DELETE grid
@@ -60,29 +59,29 @@ components/
   DigestBlock.tsx     # card with serif title, tldr, bullets, why-it-matters, rating, ask
   OverviewView.tsx    # synthesized briefing, red banner if credits exhausted
   TrendsView.tsx + TrendCard.tsx
-  BreakdownsView.tsx  # podcast-specific rendering with sections
   EarningsView.tsx    # xlsx upload + GridView (per-company expandable)
   PortfolioView.tsx   # SnapTrade-backed brokerage view: KPI strip, accounts, positions table
   GroupedView.tsx     # generic source-grouped card layout used by Score/Source toggle when set to "source"
-  WiredView.tsx       # source list grouped by tab + freshness badges
-  AddSourcePanel.tsx  # inline form for adding sources
+  WiredView.tsx       # source list grouped dynamically by tab + freshness badges
+  AddSourcePanel.tsx  # inline form for adding sources (calls stub /api/sources)
   RefreshButton.tsx   # header button calling /api/refresh
-  AskModal.tsx        # chat overlay
-  RatingStars.tsx     # 5-star control
+  AskModal.tsx        # chat overlay (web_search enabled — shows "pulled from N searches" badge)
+  RatingStars.tsx     # 3-step rating control (1=demote, 2=meh, 3=love)
   TabButton.tsx       # nav pill
   ThemeManager.tsx    # client useEffect: toggles .dark on <html> when hour ≥ 19 or < 7
 
 lib/
   pipeline.ts         # runIngest() orchestrator — see §6
-  sources.ts          # the 21 source definitions (single source of truth)
-  config.ts           # all tunable knobs (caps, scores, TTLs, batch sizes)
+  sources.ts          # the 25 source definitions (single source of truth) — see §8
+  config.ts           # all tunable knobs (caps, scores, TTLs, batch sizes) — see §9
   types.ts            # DigestItem, Source, Overview, Trend, etc.
   profile.ts          # USER_PROFILE + FUN_PROFILE (scoring guides used in Claude prompts)
-  rank.ts             # enrichMarketsItems / enrichFunItems (batches of 5, concurrency 3)
+  preferences.ts      # buildPreferenceMemory + renderPreferenceAddendum (ratings → prompt addendum)
+  rank.ts             # enrichMarketsItems / enrichFunItems (batches of 8, concurrency 2, prompt caching on)
   dedup.ts            # post-merge topic dedup (single Claude call, news-only)
   synthesize.ts       # Trends Debunked generation (weekly)
-  synthesize-overview.ts  # Overview briefing (every cron run)
-  email-sender.ts     # nodemailer SMTP, comma-separated recipients
+  synthesize-overview.ts  # Overview briefing (every cron run, evening pass gets morning context)
+  email-sender.ts     # nodemailer SMTP, comma-separated recipients, drops Podcasts in evening
   scoring.ts          # decayFactor() + effectiveImportance()
   store.ts            # KV (prod) / fs (local) reads & writes — see §5 keys
   parse-earnings-xlsx.ts  # AlphaSense Generative Grid parser
@@ -103,7 +102,7 @@ lib/
 | `trends` | `TrendsBundle` | `{generatedAt, trends[]}` — weekly regen |
 | `overview` | `OverviewBundle` | `{generatedAt, overview}` — every cron |
 | `last_updated` | `Partial<Record<TabId|'trends', string>>` | Per-tab "last refreshed" stamps |
-| `ratings` | `Record<itemId, Rating>` | User 1-5 stars + item snapshot |
+| `ratings` | `Record<itemId, Rating>` | User 1-3 stars + item snapshot (legacy 1-5 coerced on read) |
 | `credits_status` | `{exhausted, detectedAt, message}` or null | Red banner trigger |
 | `earnings:index` | `string[]` | Grid IDs in upload order |
 | `earnings:<id>` | `EarningsGrid` | One per uploaded xlsx |
@@ -117,7 +116,7 @@ lib/
    - **news-only mode skips any source in `PODCAST_SOURCE_IDS`** (incl. WSB)
 3. Filter to URLs not already in KV → these are the "new" items
 4. `hydrateTranscripts(newMarkets)` — for podcasts on acquired.fm or colossus.com, scrape transcript and attach as `fullContent`
-5. `enrichWithCreditTracking(newMarkets, newFun)` — Claude Haiku enrichment in batches of 5 with concurrency 3. On 402/credit errors, writes `credits_status` flag for the banner.
+5. `enrichWithCreditTracking(newMarkets, newFun, preferenceAddendum)` — Claude Haiku enrichment in batches of 8 with concurrency 2 (Tier 1 rate-limit safe). System prefix (USER_PROFILE + feedback memory + instructions) is `cache_control: ephemeral` so subsequent batches in the run pay ~10% on the shared portion. On 402/credit errors, writes `credits_status` flag for the banner.
 6. `mergeFilterAndDedupe(existing, enrichedMarkets, enrichedFun)`:
    - URL-dedupe (higher score wins)
    - TTL + min-score filter
@@ -258,7 +257,7 @@ Cold start (no ratings) → addendum is empty string, prompt is unchanged.
 - `lib/rank.ts` — `buildMarketsSystem` / `buildFunSystem` (cacheable prefix sent as `system`) + `renderItemsForMarkets` / `renderItemsForFun` (per-batch user message). Output schema: `{id, score, tldr, bullets, cadence?, whyItMatters?, relevant?, kind?, sections?}`. Each batch passes the system block with `cache_control: { type: "ephemeral" }` so the ~3K-token prefix rides Anthropic's prompt cache (first batch ~25% write premium, subsequent batches ~10% read cost — saves ~$3/mo).
 - `lib/dedup.ts` — `buildDedupPrompt`. Output: `{drop: string[]}`. Heavily tuned with worked examples (BlackRock, Trump-Xi).
 - `lib/synthesize.ts` — Trends Debunked. Output: `Trend[]`. 4-6 items, ~250-400 words across body fields each.
-- `lib/synthesize-overview.ts` — Overview briefing. Output: `Overview { today, features, substacks, podcasts, trends, fun }` — each an array of short bullet strings. On news-only (6pm) runs, the pipeline passes the morning Overview as context so Claude focuses on net-new/developing stories rather than rehashing the morning briefing. Evening email also drops the Podcasts section (stale on news-only mode — podcasts aren't re-ingested at 6pm).
+- `lib/synthesize-overview.ts` — Overview briefing. Output: `Overview { today, features, re, substacks, podcasts, trends, fun }` — each an array of short bullet strings. On news-only (6pm) runs, the pipeline passes the morning Overview as context so Claude focuses on net-new/developing stories rather than rehashing the morning briefing. Evening email also drops the Podcasts section (stale on news-only mode — podcasts aren't re-ingested at 6pm).
 
 ## 12. Crons
 
@@ -293,21 +292,22 @@ Schedule 15 min before the desired arrival time so the ~3-4min ingest + 1-min tr
 
 **Secrets** in Vercel env (for /api/cron/trigger): `CRON_TRIGGER_SECRET` (32-byte hex, matches what cron-job.org sends in header), `GH_WORKFLOW_DISPATCH_TOKEN` (fine-grained PAT with `actions:write` on this repo).
 
-**Vercel cron is disabled** (empty `crons: []` in `vercel.json`). The `/api/cron/full` and `/api/cron/news-only` routes still exist — they can be hit manually via curl for testing.
+**Vercel cron is disabled** (empty `crons: []` in `vercel.json`). The old `/api/cron/full` and `/api/cron/news-only` routes were removed during cleanup — only `/api/cron/trigger` remains (the cron-job.org receiver).
 
 ## 13. Environment variables (in `.env.local` and Vercel project settings)
 
 | Var | Purpose |
 |---|---|
-| `ANTHROPIC_API_KEY` | Claude calls |
-| `CRON_SECRET` | Cron route auth |
+| `ANTHROPIC_API_KEY` | Claude calls — used by ingest pipeline + /api/ask + /api/refresh |
 | `GMAIL_USER` | `abhidailydigests@gmail.com` |
 | `GMAIL_APP_PASSWORD` | 16-char Gmail app password — used for both IMAP read and SMTP send |
 | `EMAIL_RECIPIENT` | Comma-separated: `ab4386@princeton.edu,lalitricha@gmail.com,aanabansal@gmail.com` |
 | `COLOSSUS_COOKIE` | Session cookie for Colossus transcript scraping (Wordfence-gated) |
-| `SNAPTRADE_CLIENT_ID` | SnapTrade Client ID (from snaptrade.com dashboard) — Portfolio tab |
-| `SNAPTRADE_CONSUMER_KEY` | SnapTrade Consumer Key — pair with Client ID, treat as a secret |
-| `KV_REST_API_URL`, `KV_REST_API_TOKEN`, `KV_REST_API_READ_ONLY_TOKEN`, `KV_URL` | Auto-injected by Vercel KV |
+| `SNAPTRADE_CLIENT_ID` | SnapTrade Client ID (from snaptrade.com dashboard) — Portfolio tab (Vercel only) |
+| `SNAPTRADE_CONSUMER_KEY` | SnapTrade Consumer Key — pair with Client ID, treat as a secret (Vercel only) |
+| `CRON_TRIGGER_SECRET` | 32-byte hex — cron-job.org sends in `X-Trigger-Secret` header, validated by `/api/cron/trigger` (Vercel only) |
+| `GH_WORKFLOW_DISPATCH_TOKEN` | Fine-grained GitHub PAT with `actions:write` on this repo — `/api/cron/trigger` uses it to dispatch ingest.yml (Vercel only) |
+| `KV_REST_API_URL`, `KV_REST_API_TOKEN`, `KV_REST_API_READ_ONLY_TOKEN`, `KV_URL`, `REDIS_URL` | Auto-injected by Vercel KV; needed in both Vercel env AND GitHub Actions secrets so `npm run ingest` can write to the shared Upstash |
 
 ## 14. Important design decisions (don't undo these without thought)
 
@@ -337,11 +337,12 @@ Schedule 15 min before the desired arrival time so the ~3-4min ingest + 1-min tr
 
 ## 16. Outstanding ideas / known gaps
 
-- No CI yet (no GitHub Actions). Type-check + build verification runs only on Vercel's deploy.
+- No type-check / build CI on every push. Vercel's deploy build verifies on its end; the GitHub Actions workflow we have is the ingest cron, not a CI gate.
 - No tests.
 - Trends Debunked corpus uses both fresh items AND the full existing KV pool — can drift if not regenerated for too long.
-- Click tracking endpoint (`/api/click`) exists but click history isn't yet folded back into scoring.
+- `/api/click` and `/api/sources` are no-op stubs (log only). UI calls them; nothing persists. Click history → ranking, runtime source add → KV are both reasonable v2 work.
 - Mobile layout works but isn't deeply tuned (3-column grid collapses to 1).
+- Multiple API keys have been pasted in chat over the lifetime of this project (Anthropic, SnapTrade Consumer Key, socialdata.tools, GitHub PAT). Rotate them on the respective dashboards when convenient.
 
 ---
 
