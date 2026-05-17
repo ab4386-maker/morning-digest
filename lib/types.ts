@@ -1,6 +1,6 @@
 export type Cadence = "today" | "weekly" | "fun";
 export type Category = "markets" | "fun";
-export type TabId = "today" | "reads" | "breakdowns" | "fun" | "other" | "re";
+export type TabId = "today" | "reads" | "breakdowns" | "fun" | "other" | "re" | "twitter";
 // Sub-classification for news items so Today stays strict (breaking only)
 // and feature/analysis articles route to their own tab.
 export type ItemKind = "breaking" | "feature";
@@ -99,6 +99,8 @@ export type Source = {
   kind: "rss" | "email" | "scrape" | "twitter";
   url?: string;
   emailSender?: string;
+  // For kind === "twitter": the handle without the leading @ (e.g., "dylan522p").
+  twitterUsername?: string;
   weight: number;
   defaultCadence?: Cadence;
   category?: Category;

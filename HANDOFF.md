@@ -93,6 +93,7 @@ lib/
     rss.ts            # rss-parser fetch + import to DigestItem
     email.ts          # imapflow IMAP search/fetch + parse
     transcript.ts     # cheerio scrape (auth-gated via COLOSSUS_COOKIE)
+    twitter.ts        # socialdata.tools client — per-account tweet fetch (Twitter tab)
 ```
 
 ## 5. KV keys (prod) / `data/*.json` (local)
@@ -141,13 +142,14 @@ lib/
 | Trends Debunked | (separate KV bundle) |
 | Fun | `source.tab === "fun" || cadence === "fun"` |
 | RE | `source.tab === "re"` (real estate — Bisnow, The Real Deal) |
+| Twitter | `source.tab === "twitter"` (31 investor handles via socialdata.tools) |
 | Earnings | (separate `earnings:*` KV keys) |
 | Portfolio | (separate `portfolio` + `snaptrade:user` KV keys — SnapTrade integration) |
 | Wired | (all sources, grouped by tab) |
 
 Sort: `effectiveImportance(item, now)` descending — see scoring below.
 
-## 8. Sources (25 total — `lib/sources.ts`)
+## 8. Sources (56 total — `lib/sources.ts`)
 
 **Today tab (RSS news):** wsj-markets, wsj-world, wsj-us-business, wsj-tech, wsj-opinion, bloomberg-markets-rss, bloomberg-economics-rss, nyt-business-rss, ft-markets-rss, ft-companies-rss
 
@@ -163,6 +165,8 @@ Sort: `effectiveImportance(item, now)` descending — see scoring below.
 
 **Fun:** bbc-football, guardian-football
 
+**Twitter (twitter tab):** 31 accounts via socialdata.tools — fetched with `from:USERNAME` search, capped at `TWITTER_TWEETS_PER_ACCOUNT=5` per account per cron. Skips replies (`TWITTER_SKIP_REPLIES=true`) and tweets older than `TWITTER_LOOKBACK_HOURS=36`. Source IDs are `tw-{username}` lowercased. Edit the username array near the bottom of `lib/sources.ts` to add/remove handles.
+
 Each source has: `id, name, kind ("rss"|"email"), url|emailSender, weight, defaultCadence, category, tab, itemsPerFeed?`.
 
 `itemsPerFeed?` overrides the global `RSS_ITEMS_PER_FEED` cap for that specific source. Current overrides:
@@ -176,7 +180,7 @@ Each source has: `id, name, kind ("rss"|"email"), url|emailSender, weight, defau
 ## 9. Tunable knobs (`lib/config.ts`)
 
 ```ts
-CAPS = { today: 25, other: 25, reads: 15, breakdowns: 15, fun: 12, re: 15 }
+CAPS = { today: 25, other: 25, reads: 15, breakdowns: 15, fun: 12, re: 15, twitter: 40 }
 MIN_MARKETS_SCORE = 30
 MIN_FUN_SCORE = 25
 BREAKING_TODAY_FLOOR = 40   // breaking items with relevant=false still go to Today if importance ≥ this
@@ -294,6 +298,7 @@ Workflow runs `npm run ingest -- --mode=<full|news-only> [--send-email]` which i
 | `GMAIL_APP_PASSWORD` | 16-char Gmail app password — used for both IMAP read and SMTP send |
 | `EMAIL_RECIPIENT` | Comma-separated: `ab4386@princeton.edu,lalitricha@gmail.com,aanabansal@gmail.com` |
 | `COLOSSUS_COOKIE` | Session cookie for Colossus transcript scraping (Wordfence-gated) |
+| `SOCIALDATA_API_KEY` | socialdata.tools Bearer token — Twitter ingest. Format: `{id}\|{secret}` |
 | `SNAPTRADE_CLIENT_ID` | SnapTrade Client ID (from snaptrade.com dashboard) — Portfolio tab |
 | `SNAPTRADE_CONSUMER_KEY` | SnapTrade Consumer Key — pair with Client ID, treat as a secret |
 | `KV_REST_API_URL`, `KV_REST_API_TOKEN`, `KV_REST_API_READ_ONLY_TOKEN`, `KV_URL` | Auto-injected by Vercel KV |

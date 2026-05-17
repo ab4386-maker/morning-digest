@@ -9,6 +9,7 @@ export const CAPS = {
   breakdowns: 15,
   fun: 12,
   re: 15,
+  twitter: 40,
 } as const;
 
 // ── SCORE FLOORS (filter out below) ──
@@ -59,6 +60,15 @@ export const DEDUP_MAX_TOKENS = 4000;
 
 // ── TRENDS ──
 export const TRENDS_REFRESH_DAYS = 7;
+
+// ── TWITTER (socialdata.tools) ──
+// Per-account fetch cap. With 31 accounts, 5 each = 155 candidates per ingest —
+// plenty of material for Claude to rank. Bump per-source via Source.itemsPerFeed.
+export const TWITTER_TWEETS_PER_ACCOUNT = 5;
+// Skip tweets older than this. Tweet-velocity → short shelf life.
+export const TWITTER_LOOKBACK_HOURS = 36;
+// Skip pure replies (often noise / context-free). Quote tweets and originals kept.
+export const TWITTER_SKIP_REPLIES = true;
 
 // ── PODCAST IDS — excluded from news-only mode and from news dedup pool ──
 export const PODCAST_SOURCE_IDS = new Set([
