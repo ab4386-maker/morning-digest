@@ -262,27 +262,38 @@ Cold start (no ratings) → addendum is empty string, prompt is unchanged.
 
 ## 12. Crons
 
-**Now runs on GitHub Actions** (`.github/workflows/ingest.yml`), not Vercel cron. The ingest exceeds Vercel Hobby's 60s function cap; GitHub Actions has 6h timeout, no cost concerns (private repo Hobby gets 2000 min/month, we use ~240).
+**Triggered by cron-job.org (external scheduler) → /api/cron/trigger → GitHub Actions.**
+GitHub Actions' built-in `schedule:` was abandoned because delays of 0-90 min at peak made the digest land unpredictably (8am cron sometimes arrived at 9:30am). cron-job.org fires on-time (<1 min drift) for free.
 
-```yaml
-schedule:
-  - cron: "0 12 * * *"   # 8am ET  — full mode (podcasts + weekly trends)
-  - cron: "0 22 * * *"   # 6pm ET  — news-only mode (skips podcasts/trends)
-workflow_dispatch:        # manual trigger from GitHub UI with mode + email options
+```
+cron-job.org (timer, free)
+  POSTs at 7:45am + 5:45pm ET
+       ↓ X-Trigger-Secret header
+/api/cron/trigger (Vercel)
+  validates secret, calls GitHub workflow_dispatch
+       ↓
+GitHub Actions ingest.yml workflow
+  npm run ingest -- --mode=<full|news-only> --send-email
+       ↓
+runIngest() writes to Vercel KV, sends email
 ```
 
-UTC times = 8am + 6pm ET during EDT. Bump both by 1h during EST (winter).
+**cron-job.org config** (two cron entries):
+- Job 1 — "morning": URL `https://morning-digest-plum.vercel.app/api/cron/trigger`, method POST, header `X-Trigger-Secret: <CRON_TRIGGER_SECRET>`, body `{"mode":"full"}`, schedule `11:45 UTC * * Mon-Sun` (= 7:45am EDT)
+- Job 2 — "evening": same URL/headers, body `{"mode":"news-only"}`, schedule `21:45 UTC * * Mon-Sun` (= 5:45pm EDT)
 
-Workflow runs `npm run ingest -- --mode=<full|news-only> [--send-email]` which invokes [scripts/ingest.ts](scripts/ingest.ts) → same `runIngest()` used by the Vercel routes, but executing on GitHub's runners. Writes to the same Vercel KV as production reads from — so a successful GitHub Actions run instantly updates morning-digest-plum.vercel.app.
-
-**Vercel cron is disabled** (empty `crons: []` in `vercel.json`). The `/api/cron/full` and `/api/cron/news-only` routes still exist — they can be hit manually via curl for testing.
+Schedule 15 min before the desired arrival time so the ~3-4min ingest + 1-min trigger latency lands the email by xx:00.
 
 **Manual ingest options:**
 - Dashboard "Refresh now" button → calls `/api/refresh` (Vercel, capped at 60s — works for small runs only)
 - `npm run ingest` locally → full pipeline, no time limit
-- GitHub Actions "Run workflow" button → same as cron, with optional email toggle
+- GitHub Actions "Run workflow" button (Actions tab → ingest.yml → Run workflow) → same as scheduled run, with optional email toggle
 
-**Secrets** required in GitHub Actions (Repo Settings → Secrets and variables → Actions): `ANTHROPIC_API_KEY`, `GMAIL_USER`, `GMAIL_APP_PASSWORD`, `EMAIL_RECIPIENT`, `COLOSSUS_COOKIE`, `KV_REST_API_URL`, `KV_REST_API_TOKEN`, `KV_REST_API_READ_ONLY_TOKEN`, `KV_URL`, `REDIS_URL`. Copy values from `.env.local`.
+**Secrets** in GitHub Actions (Repo Settings → Secrets and variables → Actions): `ANTHROPIC_API_KEY`, `GMAIL_USER`, `GMAIL_APP_PASSWORD`, `EMAIL_RECIPIENT`, `COLOSSUS_COOKIE`, `KV_REST_API_URL`, `KV_REST_API_TOKEN`, `KV_REST_API_READ_ONLY_TOKEN`, `KV_URL`, `REDIS_URL`.
+
+**Secrets** in Vercel env (for /api/cron/trigger): `CRON_TRIGGER_SECRET` (32-byte hex, matches what cron-job.org sends in header), `GH_WORKFLOW_DISPATCH_TOKEN` (fine-grained PAT with `actions:write` on this repo).
+
+**Vercel cron is disabled** (empty `crons: []` in `vercel.json`). The `/api/cron/full` and `/api/cron/news-only` routes still exist — they can be hit manually via curl for testing.
 
 ## 13. Environment variables (in `.env.local` and Vercel project settings)
 

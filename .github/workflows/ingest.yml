@@ -6,11 +6,11 @@ name: Morning Digest Ingest
 # new items immediately after a successful run.
 
 on:
-  schedule:
-    # Crons are in UTC. 12:00 UTC = 8am EDT, 22:00 UTC = 6pm EDT.
-    # If you switch to EST (winter), bump both by 1h: 13 UTC, 23 UTC.
-    - cron: "0 12 * * *"  # 8am ET — full mode, refreshes podcasts + weekly trends
-    - cron: "0 22 * * *"  # 6pm ET — news-only mode, skips podcasts/trends
+  # Triggered externally by cron-job.org → /api/cron/trigger → workflow_dispatch.
+  # GitHub Actions' built-in `schedule:` trigger was disabled because its delays
+  # (0-90 min at peak) made the digest land unpredictably. cron-job.org fires
+  # on-time (<1 min drift), then this workflow runs on GitHub's infra (no 60s cap).
+  # Manual runs still work via the Actions UI ("Run workflow" button).
   workflow_dispatch:
     inputs:
       mode:
