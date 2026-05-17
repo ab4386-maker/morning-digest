@@ -256,7 +256,7 @@ Cold start (no ratings) → addendum is empty string, prompt is unchanged.
 - `lib/rank.ts` — `buildMarketsSystem` / `buildFunSystem` (cacheable prefix sent as `system`) + `renderItemsForMarkets` / `renderItemsForFun` (per-batch user message). Output schema: `{id, score, tldr, bullets, cadence?, whyItMatters?, relevant?, kind?, sections?}`. Each batch passes the system block with `cache_control: { type: "ephemeral" }` so the ~3K-token prefix rides Anthropic's prompt cache (first batch ~25% write premium, subsequent batches ~10% read cost — saves ~$3/mo).
 - `lib/dedup.ts` — `buildDedupPrompt`. Output: `{drop: string[]}`. Heavily tuned with worked examples (BlackRock, Trump-Xi).
 - `lib/synthesize.ts` — Trends Debunked. Output: `Trend[]`. 4-6 items, ~250-400 words across body fields each.
-- `lib/synthesize-overview.ts` — Overview briefing. Output: `Overview { today, features, substacks, podcasts, trends, fun }` — each an array of short bullet strings.
+- `lib/synthesize-overview.ts` — Overview briefing. Output: `Overview { today, features, substacks, podcasts, trends, fun }` — each an array of short bullet strings. On news-only (6pm) runs, the pipeline passes the morning Overview as context so Claude focuses on net-new/developing stories rather than rehashing the morning briefing. Evening email also drops the Podcasts section (stale on news-only mode — podcasts aren't re-ingested at 6pm).
 
 ## 12. Crons
 

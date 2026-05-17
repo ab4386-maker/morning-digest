@@ -2,7 +2,10 @@ import nodemailer from "nodemailer";
 import type { Overview } from "./types";
 import { DASHBOARD_URL } from "./config";
 
-const SECTIONS: { key: keyof Overview; label: string }[] = [
+// News-only (6pm) skips podcast ingestion entirely, so the "podcasts" section in
+// an evening email would be stale copy from the morning run. Drop it from the
+// evening render — same data still surfaces on the dashboard's Podcasts tab.
+const ALL_SECTIONS: { key: keyof Overview; label: string }[] = [
   { key: "today", label: "Today" },
   { key: "features", label: "Features" },
   { key: "substacks", label: "Substacks" },
@@ -10,6 +13,11 @@ const SECTIONS: { key: keyof Overview; label: string }[] = [
   { key: "trends", label: "Trends Debunked" },
   { key: "fun", label: "Fun" },
 ];
+
+function sectionsFor(mode: "full" | "news-only"): typeof ALL_SECTIONS {
+  if (mode === "news-only") return ALL_SECTIONS.filter((s) => s.key !== "podcasts");
+  return ALL_SECTIONS;
+}
 
 export async function sendOverviewEmail(
   overview: Overview,
@@ -51,8 +59,8 @@ export async function sendOverviewEmail(
       from: `"Abhi's Daily Digest" <${user}>`,
       to: recipient,
       subject,
-      html: renderHtml(overview, isAM, dateStr),
-      text: renderPlainText(overview, isAM, dateStr),
+      html: renderHtml(overview, isAM, dateStr, mode),
+      text: renderPlainText(overview, isAM, dateStr, mode),
     });
     console.log(`[email] Sent ${subject} to ${recipient}`);
   } catch (e) {
@@ -60,9 +68,10 @@ export async function sendOverviewEmail(
   }
 }
 
-function renderHtml(overview: Overview, isAM: boolean, dateStr: string): string {
+function renderHtml(overview: Overview, isAM: boolean, dateStr: string, mode: "full" | "news-only"): string {
   const greeting = isAM ? "Morning Digest" : "Evening Digest";
-  const sections = SECTIONS.filter((s) => overview[s.key]?.length > 0)
+  const sections = sectionsFor(mode)
+    .filter((s) => overview[s.key]?.length > 0)
     .map((s) => {
       const items = overview[s.key]
         .map((b) => `<li style="margin-bottom: 8px; line-height: 1.55;">${escapeHtml(b)}</li>`)
@@ -99,9 +108,10 @@ function renderHtml(overview: Overview, isAM: boolean, dateStr: string): string 
 </html>`;
 }
 
-function renderPlainText(overview: Overview, isAM: boolean, dateStr: string): string {
+function renderPlainText(overview: Overview, isAM: boolean, dateStr: string, mode: "full" | "news-only"): string {
   const greeting = isAM ? "MORNING DIGEST" : "EVENING DIGEST";
-  const sections = SECTIONS.filter((s) => overview[s.key]?.length > 0)
+  const sections = sectionsFor(mode)
+    .filter((s) => overview[s.key]?.length > 0)
     .map((s) => {
       const items = overview[s.key].map((b) => `  • ${b}`).join("\n");
       return `${s.label.toUpperCase()}\n${items}`;

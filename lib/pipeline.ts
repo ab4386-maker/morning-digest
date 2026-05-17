@@ -11,6 +11,7 @@ import { effectiveImportance } from "./scoring";
 import {
   readItems,
   readLastUpdated,
+  readOverview,
   readRatings,
   readTrends,
   writeCreditsStatus,
@@ -377,10 +378,19 @@ async function synthesizeAndEmailOverview(
   try {
     console.log(`[pipeline] synthesizing overview briefing…`);
     const existingTrendsBundle = await readTrends();
+    // For evening (news-only) runs: load the morning overview so the synth knows
+    // what the user already read and can focus on net new / developing stories.
+    // Full mode (8am) is the fresh start of the day — no prior context needed.
+    const priorBundle = mode === "news-only" ? await readOverview() : null;
+    if (priorBundle) {
+      console.log(`[pipeline] passing morning overview (${priorBundle.generatedAt}) as context`);
+    }
     const overview = await synthesizeOverview(
       finalItems,
       existingTrendsBundle?.trends ?? [],
-      SOURCES
+      SOURCES,
+      priorBundle?.overview ?? null,
+      priorBundle?.generatedAt ?? null
     );
     if (overview) {
       await writeOverview({ generatedAt: stamp, overview });

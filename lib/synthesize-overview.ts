@@ -11,11 +11,17 @@ function client() {
  * Generates a cohesive 1-2 minute briefing across all tabs as bulleted sections.
  * Voice: smart-friend-telling-you-what's-happening, not buyside note.
  * Single Haiku call, ~$0.015 per run.
+ *
+ * If `priorOverview` is provided (typically the morning briefing being passed into
+ * the 6pm run), the prompt instructs Claude to focus on NET NEW items and material
+ * developments — not rehash what the user already read.
  */
 export async function synthesizeOverview(
   items: DigestItem[],
   trends: Trend[],
-  sources: Source[]
+  sources: Source[],
+  priorOverview: Overview | null = null,
+  priorGeneratedAt: string | null = null
 ): Promise<Overview | null> {
   if (items.length === 0) return null;
 
@@ -50,7 +56,44 @@ export async function synthesizeOverview(
     .map((t) => `${t.title} — ${t.tldr}`)
     .join("\n");
 
-  const prompt = `You are writing a 1-2 minute briefing — think Axios Morning meets The Daily meets a smart friend giving you the rundown. Goal: someone wakes up, opens this, and knows what happened across the news landscape without having to check 10 apps.
+  // Only include the prior-overview context if it's from earlier today (within last 18h).
+  // Older overviews would create false "you already saw this" signal.
+  let priorContext = "";
+  if (priorOverview && priorGeneratedAt) {
+    const ageH = (Date.now() - new Date(priorGeneratedAt).getTime()) / 3600000;
+    if (ageH < 18) {
+      const priorTime = new Date(priorGeneratedAt).toLocaleTimeString("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+        timeZone: "America/New_York",
+      });
+      const priorRendered = (Object.keys(priorOverview) as (keyof Overview)[])
+        .filter((k) => (priorOverview[k]?.length ?? 0) > 0)
+        .map((k) => `${String(k).toUpperCase()}:\n${priorOverview[k].map((b) => `  - ${b}`).join("\n")}`)
+        .join("\n\n");
+      priorContext = `
+
+────────────────────────────────────────────────────────────────────────
+EVENING UPDATE MODE — the user already read the morning briefing at ${priorTime} ET.
+This is the same day's 6pm refresh. Your job: surface what's NEW or has materially
+DEVELOPED since the morning briefing below. Do NOT rehash bullets the user already
+saw. If an item is genuinely the same story with no new angle, skip it. If a story
+has progressed (e.g., new data, new reaction, new players), call that out
+explicitly with phrasing like "Update on…" or "New: …".
+
+Aim for a SHORTER briefing if there's less truly new ground — 5-8 today bullets
+is fine if only that much is genuinely fresh. Quality > quantity.
+
+MORNING BRIEFING (already sent to user at ${priorTime} ET — do not repeat unless materially developed):
+
+${priorRendered}
+────────────────────────────────────────────────────────────────────────
+
+`;
+    }
+  }
+
+  const prompt = `${priorContext}You are writing a 1-2 minute briefing — think Axios Morning meets The Daily meets a smart friend giving you the rundown. Goal: someone wakes up, opens this, and knows what happened across the news landscape without having to check 10 apps.
 
 Voice: **clear, conversational, lightly punchy**. NOT corporate or academic. NOT buyside jargon. Just a smart friend telling you what's going on. Cite names, numbers, and specifics — but explain anything obscure inline. Use active voice.
 
