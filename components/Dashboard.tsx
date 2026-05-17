@@ -20,7 +20,7 @@ import { DigestBlock } from "./DigestBlock";
 import { WiredView } from "./WiredView";
 import { EarningsView } from "./EarningsView";
 import { OverviewView } from "./OverviewView";
-import { BreakdownsView } from "./BreakdownsView";
+import { GroupedView } from "./GroupedView";
 import { TrendsView } from "./TrendsView";
 import { TabButton } from "./TabButton";
 import { AddSourcePanel } from "./AddSourcePanel";
@@ -34,6 +34,20 @@ const NO_UPDATED_LINE: Set<Tab> = new Set(["wired", "earnings", "overview", "por
 
 // Tabs that only get a once-daily refresh (8am, full mode).
 const DAILY_ONLY_TABS: Set<Tab> = new Set(["breakdowns", "trends"]);
+
+// Tabs that show the Score/Source sort toggle. Custom-view tabs (overview, earnings,
+// portfolio, wired, trends) don't get the toggle since they don't render a card grid.
+const SORTABLE_TABS: Set<Tab> = new Set([
+  "today",
+  "features",
+  "other",
+  "reads",
+  "breakdowns",
+  "fun",
+  "re",
+]);
+
+type SortMode = "score" | "source";
 
 export function Dashboard({
   items,
@@ -68,6 +82,7 @@ export function Dashboard({
 }) {
   const [tab, setTab] = useState<Tab>("overview");
   const [showAddSource, setShowAddSource] = useState(false);
+  const [sortMode, setSortMode] = useState<SortMode>("score");
 
   const sourceTabMap = useMemo(() => {
     const m = new Map<string, TabId | undefined>();
@@ -133,6 +148,10 @@ export function Dashboard({
 
       <UpdatedLine ts={tabUpdatedAt(tab)} tab={tab} />
 
+      {SORTABLE_TABS.has(tab) && visible.length > 0 && (
+        <SortToggle mode={sortMode} onChange={setSortMode} />
+      )}
+
       <main>
         <TabContent
           tab={tab}
@@ -146,6 +165,7 @@ export function Dashboard({
           trends={trends}
           trendsUpdatedAt={trendsUpdatedAt}
           earningsGrids={earningsGrids}
+          sortMode={sortMode}
           gmailConfigured={gmailConfigured}
           portfolio={portfolio}
           portfolioConnected={portfolioConnected}
@@ -246,6 +266,7 @@ function TabContent({
   portfolio,
   portfolioConnected,
   snapTradeConfigured,
+  sortMode,
 }: {
   tab: Tab;
   visible: DigestItem[];
@@ -262,6 +283,7 @@ function TabContent({
   portfolio: PortfolioSnapshot | null;
   portfolioConnected: boolean;
   snapTradeConfigured: boolean;
+  sortMode: SortMode;
 }) {
   if (tab === "overview") {
     return (
@@ -293,16 +315,44 @@ function TabContent({
     );
   }
 
-  if (tab === "breakdowns") {
-    return <BreakdownsView items={visible} ratings={ratings} sources={sources} />;
+  // Card-grid tabs (today / features / other / reads / breakdowns / fun / re). When
+  // sortMode === "source" the user explicitly asked for source-grouped sections;
+  // otherwise the default is a flat grid ranked by importance.
+  if (sortMode === "source") {
+    return <GroupedView items={visible} ratings={ratings} sources={sources} />;
   }
-
-  // Default grid layout for today / features / other / reads / fun
   return (
     <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {visible.map((item) => (
         <DigestBlock key={item.id} item={item} initialRating={ratings[item.id]?.rating} />
       ))}
+    </div>
+  );
+}
+
+function SortToggle({ mode, onChange }: { mode: SortMode; onChange: (m: SortMode) => void }) {
+  const btn = (id: SortMode, label: string) => {
+    const active = mode === id;
+    return (
+      <button
+        type="button"
+        onClick={() => onChange(id)}
+        className={`px-2.5 py-1 text-[11px] font-medium uppercase tracking-wider transition ${
+          active
+            ? "bg-stone-900 text-white dark:bg-stone-100 dark:text-stone-900"
+            : "text-stone-500 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-100"
+        }`}
+      >
+        {label}
+      </button>
+    );
+  };
+  return (
+    <div className="mb-4 flex justify-end">
+      <div className="inline-flex overflow-hidden rounded-md border border-stone-200 dark:border-stone-700">
+        {btn("score", "Score")}
+        {btn("source", "Source")}
+      </div>
     </div>
   );
 }

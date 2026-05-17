@@ -56,13 +56,14 @@ app/
       disconnect/     # POST → deletes SnapTrade user (revokes all brokerage auths) + clears local state
 
 components/
-  Dashboard.tsx       # tab shell, filterItemsForTab, TabContent, UpdatedLine
+  Dashboard.tsx       # tab shell, filterItemsForTab, TabContent, UpdatedLine, SortToggle (Score/Source)
   DigestBlock.tsx     # card with serif title, tldr, bullets, why-it-matters, rating, ask
   OverviewView.tsx    # synthesized briefing, red banner if credits exhausted
   TrendsView.tsx + TrendCard.tsx
   BreakdownsView.tsx  # podcast-specific rendering with sections
   EarningsView.tsx    # xlsx upload + GridView (per-company expandable)
   PortfolioView.tsx   # SnapTrade-backed brokerage view: KPI strip, accounts, positions table
+  GroupedView.tsx     # generic source-grouped card layout used by Score/Source toggle when set to "source"
   WiredView.tsx       # source list grouped by tab + freshness badges
   AddSourcePanel.tsx  # inline form for adding sources
   RefreshButton.tsx   # header button calling /api/refresh
