@@ -178,7 +178,7 @@ Each source has: `id, name, kind ("rss"|"email"), url|emailSender, weight, defau
 CAPS = { today: 25, other: 25, reads: 15, breakdowns: 15, fun: 12, re: 15 }
 MIN_MARKETS_SCORE = 30
 MIN_FUN_SCORE = 25
-BREAKING_TODAY_FLOOR = 50   // breaking items with relevant=false still go to Today if importance ≥ this
+BREAKING_TODAY_FLOOR = 40   // breaking items with relevant=false still go to Today if importance ≥ this
 TTL_HOURS = { today: 48, weekly: 60*24, fun: 30*24 }   // hours — today is a hard 2-day cap, forces rotation
 
 RSS_LOOKBACK_DAYS = 45         // items older than this never enter
