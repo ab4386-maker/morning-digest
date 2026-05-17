@@ -1,7 +1,6 @@
 import { SOURCES } from "./sources";
 import { ingestRss } from "./ingest/rss";
 import { ingestEmail } from "./ingest/email";
-import { ingestTwitter } from "./ingest/twitter";
 import { fetchTranscript } from "./ingest/transcript";
 import { enrichMarketsItems, enrichFunItems } from "./rank";
 import { dedupItems } from "./dedup";
@@ -54,7 +53,6 @@ export type IngestResult = {
   breakdowns: number;
   fun: number;
   re: number;
-  twitter: number;
   trendsRegenerated: boolean;
   mode: IngestMode;
 };
@@ -135,7 +133,6 @@ export async function runIngest(opts: IngestOptions = {}): Promise<IngestResult>
     breakdowns: route.breakdowns.length,
     fun: route.fun.length,
     re: route.re.length,
-    twitter: route.twitter.length,
     trendsRegenerated,
     mode,
   };
@@ -157,7 +154,7 @@ async function runDedupOnly(mode: IngestMode): Promise<IngestResult> {
   const deduped = await dedupItems(current);
   await writeItems(deduped);
   return {
-    written: deduped.length, today: 0, other: 0, reads: 0, breakdowns: 0, fun: 0, re: 0, twitter: 0,
+    written: deduped.length, today: 0, other: 0, reads: 0, breakdowns: 0, fun: 0, re: 0,
     trendsRegenerated: false, mode,
   };
 }
@@ -185,12 +182,6 @@ async function fetchAllSources(
       console.log(`  -> ${items.length} emails`);
       if (source.category === "fun") funRaw.push(...items);
       else marketsRaw.push(...items);
-    } else if (source.kind === "twitter") {
-      if (!process.env.SOCIALDATA_API_KEY) continue; // skip if Twitter API not configured
-      console.log(`[pipeline] ${source.name} (twitter)…`);
-      const items = await ingestTwitter(source);
-      console.log(`  -> ${items.length} tweets`);
-      marketsRaw.push(...items);
     }
   }
 
@@ -295,7 +286,6 @@ type RouteResult = {
   breakdowns: DigestItem[];
   fun: DigestItem[];
   re: DigestItem[];
-  twitter: DigestItem[];
   finalItems: DigestItem[];
 };
 
@@ -325,22 +315,21 @@ function routeAndCap(survivors: DigestItem[]): RouteResult {
     .filter((i) => tabOf(i) === "fun" || i.cadence === "fun")
     .slice(0, CAPS.fun);
   const re = survivors.filter((i) => tabOf(i) === "re").slice(0, CAPS.re);
-  const twitter = survivors.filter((i) => tabOf(i) === "twitter").slice(0, CAPS.twitter);
 
   return {
-    today, other, reads, breakdowns, fun, re, twitter,
-    finalItems: [...today, ...other, ...reads, ...breakdowns, ...fun, ...re, ...twitter],
+    today, other, reads, breakdowns, fun, re,
+    finalItems: [...today, ...other, ...reads, ...breakdowns, ...fun, ...re],
   };
 }
 
 function logRouteSummary(r: RouteResult): void {
   console.log(
-    `[pipeline] wrote ${r.finalItems.length} items (${r.today.length} today, ${r.other.length} other, ${r.reads.length} reads, ${r.breakdowns.length} breakdowns, ${r.fun.length} fun, ${r.re.length} re, ${r.twitter.length} twitter)`
+    `[pipeline] wrote ${r.finalItems.length} items (${r.today.length} today, ${r.other.length} other, ${r.reads.length} reads, ${r.breakdowns.length} breakdowns, ${r.fun.length} fun, ${r.re.length} re)`
   );
 }
 
 function computeTabStamps(stamp: string, mode: IngestMode): LastUpdated {
-  const stamps: LastUpdated = { today: stamp, other: stamp, reads: stamp, fun: stamp, re: stamp, twitter: stamp };
+  const stamps: LastUpdated = { today: stamp, other: stamp, reads: stamp, fun: stamp, re: stamp };
   if (mode === "full") stamps.breakdowns = stamp;
   return stamps;
 }

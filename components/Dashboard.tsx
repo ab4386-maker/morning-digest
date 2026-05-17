@@ -45,7 +45,6 @@ const SORTABLE_TABS: Set<Tab> = new Set([
   "breakdowns",
   "fun",
   "re",
-  "twitter",
 ]);
 
 type SortMode = "score" | "source";
@@ -141,7 +140,6 @@ export function Dashboard({
         <TabButton active={tab === "trends"} onClick={() => setTab("trends")}>Trends Debunked</TabButton>
         <TabButton active={tab === "other"} onClick={() => setTab("other")}>Other News</TabButton>
         <TabButton active={tab === "re"} onClick={() => setTab("re")}>RE</TabButton>
-        <TabButton active={tab === "twitter"} onClick={() => setTab("twitter")}>Twitter</TabButton>
         <TabButton active={tab === "fun"} onClick={() => setTab("fun")}>Fun</TabButton>
         <TabButton active={tab === "earnings"} onClick={() => setTab("earnings")}>Earnings</TabButton>
         <TabButton active={tab === "portfolio"} onClick={() => setTab("portfolio")}>Portfolio</TabButton>
@@ -240,9 +238,6 @@ function filterItemsForTab(
       break;
     case "re":
       filtered = items.filter((i) => tabOf(i) === "re");
-      break;
-    case "twitter":
-      filtered = items.filter((i) => tabOf(i) === "twitter");
       break;
     default:
       return [];
