@@ -5,6 +5,7 @@ import type { CreditsStatus, Overview } from "@/lib/types";
 const SECTIONS: { key: keyof Overview; label: string; tone: "primary" | "secondary" | "tertiary" }[] = [
   { key: "today", label: "Today", tone: "primary" },
   { key: "features", label: "Features", tone: "primary" },
+  { key: "re", label: "Real Estate", tone: "primary" },
   { key: "substacks", label: "Substacks", tone: "secondary" },
   { key: "podcasts", label: "Podcasts", tone: "secondary" },
   { key: "trends", label: "Trends Debunked", tone: "tertiary" },

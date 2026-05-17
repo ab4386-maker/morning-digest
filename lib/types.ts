@@ -57,6 +57,7 @@ export type EarningsIndex = string[];
 export type Overview = {
   today: string[];
   features: string[];
+  re: string[];
   substacks: string[];
   podcasts: string[];
   trends: string[];

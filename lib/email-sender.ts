@@ -8,6 +8,7 @@ import { DASHBOARD_URL } from "./config";
 const ALL_SECTIONS: { key: keyof Overview; label: string }[] = [
   { key: "today", label: "Today" },
   { key: "features", label: "Features" },
+  { key: "re", label: "Real Estate" },
   { key: "substacks", label: "Substacks" },
   { key: "podcasts", label: "Podcasts" },
   { key: "trends", label: "Trends Debunked" },

@@ -42,6 +42,7 @@ export async function synthesizeOverview(
     .slice(0, 5);
   const substacks = items.filter((i) => tabOf(i) === "reads");
   const podcasts = items.filter((i) => tabOf(i) === "breakdowns");
+  const re = items.filter((i) => tabOf(i) === "re");
   const fun = items.filter((i) => tabOf(i) === "fun" || i.cadence === "fun");
 
   const fmt = (xs: DigestItem[], cap: number) =>
@@ -102,6 +103,7 @@ Output STRICT JSON only. No code fences. Each section is an array of short bulle
 {
   "today": ["bullet 1", "bullet 2", ...],
   "features": [...],
+  "re": [...],
   "substacks": [...],
   "podcasts": [...],
   "trends": [...],
@@ -111,6 +113,7 @@ Output STRICT JSON only. No code fences. Each section is an array of short bulle
 Section length guidance:
 - today: 7-10 bullets — the biggest news that broke today/recently. INCLUDE major world events (geopolitics, conflicts, major elections, regulatory bombshells, natural disasters, headline-grabbing political stories) — not just finance/L/S items. If it's the kind of thing every news app is leading with, include it.
 - features: 5-7 bullets — bigger analytical reads worth knowing about
+- re: 3-5 bullets — real estate / CRE news (Bisnow, The Real Deal). REIT moves, deal closings, sector trends, brokerage stories. Frame for an investor watching the sector, not a broker pitching listings.
 - substacks: 3-5 bullets — what independent writers are arguing this week
 - podcasts: 3-4 bullets — episodes worth listening to + why
 - trends: 2-3 bullets — pointer to current trend explainers
@@ -128,6 +131,9 @@ ${otherMajor.map((i) => `[${i.sourceName}] ${i.title}${i.tldr ? ` — ${i.tldr}`
 
 === FEATURES (analytical news pieces) ===
 ${fmt(features, 10) || "(no items)"}
+
+=== REAL ESTATE (Bisnow, The Real Deal — CRE/residential/REITs) ===
+${fmt(re, 8) || "(no items)"}
 
 === SUBSTACKS (independent analyst writeups) ===
 ${fmt(substacks, 8) || "(no items)"}
@@ -163,6 +169,7 @@ Return ONLY the JSON object, no fences, no commentary.`;
     return {
       today: asArray(parsed.today),
       features: asArray(parsed.features),
+      re: asArray(parsed.re),
       substacks: asArray(parsed.substacks),
       podcasts: asArray(parsed.podcasts),
       trends: asArray(parsed.trends),
