@@ -155,7 +155,7 @@ Sort: `effectiveImportance(item, now)` descending — see scoring below.
 
 **Today tab (email):** apollo-slok (sender `agm@apollo.com`, only ingests if `GMAIL_APP_PASSWORD` set)
 
-**Substacks (reads tab):** clouded-judgement, citrini, irrational-analysis, mbi-deepdives, a16z-newmedia (currently empty feed — kept wired for when they publish)
+**Substacks (reads tab):** clouded-judgement, citrini, irrational-analysis, mbi-deepdives, a16z (custom-domain feed at www.a16z.news — substack subdomain redirects there)
 
 **Podcasts (breakdowns tab):** acquired, business-breakdowns, invest-like-the-best, all-in
 
