@@ -132,9 +132,9 @@ lib/
 | Tab | Filter |
 |---|---|
 | Overview | (static — uses synthesized Overview from KV) |
-| Today | `source.tab === "today" && relevant !== false && kind === "breaking"` |
+| Today | `source.tab === "today" && kind === "breaking" && (relevant !== false || importance >= BREAKING_TODAY_FLOOR)` |
 | Features | `source.tab === "today" && relevant !== false && kind === "feature"` |
-| Other News | `source.tab === "today" && relevant === false` |
+| Other News | `source.tab === "today"` not in Today or Features (i.e., low-importance breakings, relevant=false features, unclassified) |
 | Substacks | `source.tab === "reads"` |
 | Podcasts | `source.tab === "breakdowns"` |
 | Trends Debunked | (separate KV bundle) |
@@ -178,6 +178,7 @@ Each source has: `id, name, kind ("rss"|"email"), url|emailSender, weight, defau
 CAPS = { today: 25, other: 25, reads: 15, breakdowns: 15, fun: 12, re: 15 }
 MIN_MARKETS_SCORE = 30
 MIN_FUN_SCORE = 25
+BREAKING_TODAY_FLOOR = 50   // breaking items with relevant=false still go to Today if importance ≥ this
 TTL_HOURS = { today: 48, weekly: 60*24, fun: 30*24 }   // hours — today is a hard 2-day cap, forces rotation
 
 RSS_LOOKBACK_DAYS = 45         // items older than this never enter

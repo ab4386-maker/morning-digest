@@ -14,6 +14,7 @@ import type {
   Trend,
 } from "@/lib/types";
 import { effectiveImportance } from "@/lib/scoring";
+import { BREAKING_TODAY_FLOOR } from "@/lib/config";
 
 import { DigestBlock } from "./DigestBlock";
 import { WiredView } from "./WiredView";
@@ -176,13 +177,20 @@ function filterItemsForTab(
   const kindOf = (i: DigestItem) => i.kind ?? "breaking";
   const now = Date.now();
 
+  // Today rule (mirrors pipeline.ts:routeAndCap): breaking items appear in Today
+  // even when relevant=false, as long as importance >= BREAKING_TODAY_FLOOR. This
+  // covers major world events (pandemics, infrastructure strikes, geopolitical
+  // shocks) that aren't directly L/S setups but belong in the morning briefing.
+  const inToday = (i: DigestItem): boolean => {
+    if (tabOf(i) !== "today" || kindOf(i) !== "breaking") return false;
+    if (i.relevant !== false) return true;
+    return i.importance >= BREAKING_TODAY_FLOOR;
+  };
+
   let filtered: DigestItem[];
   switch (tab) {
     case "today":
-      // Strict: breaking news only. Substacks stay in Substacks — no promotion.
-      filtered = items.filter(
-        (i) => tabOf(i) === "today" && i.relevant !== false && kindOf(i) === "breaking"
-      );
+      filtered = items.filter(inToday);
       break;
     case "features":
       filtered = items.filter(
@@ -190,7 +198,14 @@ function filterItemsForTab(
       );
       break;
     case "other":
-      filtered = items.filter((i) => tabOf(i) === "today" && i.relevant === false);
+      // Anything tab=today that didn't make Today or Features. Catches: relevant=false
+      // features, relevant=false low-importance breakings, and items without kind set.
+      filtered = items.filter(
+        (i) =>
+          tabOf(i) === "today" &&
+          !inToday(i) &&
+          !(i.relevant !== false && kindOf(i) === "feature")
+      );
       break;
     case "reads":
       filtered = items.filter((i) => tabOf(i) === "reads");

@@ -23,6 +23,7 @@ import {
 import { buildPreferenceMemory, renderPreferenceAddendum } from "./preferences";
 import type { DigestItem, LastUpdated, Trend } from "./types";
 import {
+  BREAKING_TODAY_FLOOR,
   CAPS,
   MIN_FUN_SCORE,
   MIN_MARKETS_SCORE,
@@ -293,11 +294,18 @@ type RouteResult = {
  * Today = relevant news; Other = irrelevant news; Reads/Breakdowns/Fun = per source.tab.
  */
 function routeAndCap(survivors: DigestItem[]): RouteResult {
-  const today = survivors
-    .filter((i) => tabOf(i) === "today" && i.relevant !== false)
-    .slice(0, CAPS.today);
+  // Today bucket = any Today-tagged item that's either L/S-relevant OR a substantive
+  // breaking news item (regardless of relevance). The "substantive breaking but not
+  // relevant" carve-out is what lets Ebola / rail strike / leadership-decap-style
+  // stories appear in Today rather than getting buried in Other News.
+  const goesToToday = (i: DigestItem): boolean => {
+    if (tabOf(i) !== "today") return false;
+    if (i.relevant !== false) return true;
+    return (i.kind ?? "breaking") === "breaking" && i.importance >= BREAKING_TODAY_FLOOR;
+  };
+  const today = survivors.filter(goesToToday).slice(0, CAPS.today);
   const other = survivors
-    .filter((i) => tabOf(i) === "today" && i.relevant === false)
+    .filter((i) => tabOf(i) === "today" && !goesToToday(i))
     .slice(0, CAPS.other);
   const reads = survivors.filter((i) => tabOf(i) === "reads").slice(0, CAPS.reads);
   const breakdowns = survivors

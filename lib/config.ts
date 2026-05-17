@@ -15,6 +15,12 @@ export const CAPS = {
 export const MIN_MARKETS_SCORE = 30;
 export const MIN_FUN_SCORE = 25;
 
+// A breaking news item that Claude tagged `relevant: false` (i.e., not directly an L/S
+// setup — think Ebola, major rail strike, ISIS leader killed) still goes to the Today
+// tab if its importance is at least this. Below this it routes to Other News alongside
+// the routine off-topic stuff. Keeps Today substantive without making it L/S-only.
+export const BREAKING_TODAY_FLOOR = 50;
+
 // ── ROLLING CORPUS TTL (items older than this age out before display) ──
 // "today" tab feels stale when the same article sits for 2+ days. 48h is a hard cap;
 // anything still important enough to surface gets re-evaluated by the next ingest.
