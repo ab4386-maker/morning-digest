@@ -16,6 +16,9 @@ export function AskModal({
   const [history, setHistory] = useState<ChatTurn[]>([]);
   const [pending, setPending] = useState(false);
   const [hasFullArticle, setHasFullArticle] = useState<boolean | null>(null);
+  // Track per-turn web-search count so the user can see when the answer pulled from
+  // outside the article. Keyed by assistant-message index in `history`.
+  const [searchesByTurn, setSearchesByTurn] = useState<Record<number, number>>({});
   const inputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -45,8 +48,12 @@ export function AskModal({
       });
       const data = await res.json();
       if (data.ok) {
-        setHistory([...newHistory, { role: "assistant", content: data.answer }]);
+        const updatedHistory = [...newHistory, { role: "assistant" as const, content: data.answer }];
+        setHistory(updatedHistory);
         setHasFullArticle(data.hasFullArticle);
+        if (typeof data.searchesUsed === "number" && data.searchesUsed > 0) {
+          setSearchesByTurn((m) => ({ ...m, [updatedHistory.length - 1]: data.searchesUsed }));
+        }
       } else {
         setHistory([
           ...newHistory,
@@ -119,6 +126,11 @@ export function AskModal({
             >
               <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-stone-500">
                 {turn.role === "user" ? "You" : "Claude"}
+                {turn.role === "assistant" && searchesByTurn[i] > 0 && (
+                  <span className="ml-2 normal-case tracking-normal text-stone-400">
+                    · pulled from {searchesByTurn[i]} web search{searchesByTurn[i] === 1 ? "" : "es"}
+                  </span>
+                )}
               </p>
               <p className="whitespace-pre-wrap">{turn.content}</p>
             </div>

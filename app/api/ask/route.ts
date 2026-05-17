@@ -50,9 +50,16 @@ ${item.tldr ? `TL;DR: ${item.tldr}\n\n` : ""}${sectionsBlock}${
       : `(Full article body not available — this source's RSS only gives a teaser. Answer from the title + tl;dr + bullets above, and acknowledge when a question requires details not in this excerpt.)`
   }`;
 
-  const system = `You are a research assistant for a college student in a long/short equity investing club. They want sharp, substantive answers — buyside-note voice, not "the article reports that…" fluff. Be specific with numbers, mechanisms, and read-throughs when the source supports it. Acknowledge when something isn't in the source rather than guessing.
+  const system = `You are a research assistant for a college student in a long/short equity investing club. They want sharp, substantive answers — buyside-note voice, not "the article reports that…" fluff. Be specific with numbers, mechanisms, and read-throughs when the source supports it.
 
-You're answering questions about the following article:
+You have a web_search tool available. Use it sparingly and only when truly needed:
+- Prefer the article context below when it can answer the question.
+- Use web_search for questions requiring info NOT in the article: current prices/quotes, things that happened after the article was published, follow-up news, cross-references to other companies/data not mentioned, or when the user explicitly asks "what's happening now."
+- Don't search just to confirm something the article already states.
+
+When you do search, cite the source you pulled from (the URL appears in the search result; include the publication name and link inline like "(Bloomberg, May 17)" so the user can verify).
+
+ARTICLE BEING DISCUSSED:
 
 ${articleContext}`;
 
@@ -64,13 +71,31 @@ ${articleContext}`;
   try {
     const resp = await client().messages.create({
       model: "claude-haiku-4-5-20251001",
-      max_tokens: 1500,
+      max_tokens: 3000,
       system,
       messages,
+      // Hosted web_search tool — Claude decides if/when to use it. max_uses caps the
+      // per-question search count so a single chat turn can't blow past ~$0.10.
+      tools: [
+        {
+          type: "web_search_20250305",
+          name: "web_search",
+          max_uses: 3,
+        },
+      ],
     });
-    const block = resp.content.find((b) => b.type === "text");
-    const answer = block && block.type === "text" ? block.text : "";
-    return NextResponse.json({ ok: true, answer, hasFullArticle });
+    // With hosted tools, the response can contain multiple text blocks interleaved
+    // with server_tool_use / web_search_tool_result blocks. Concatenate all text in
+    // order so the user gets the full answer including any pre-search commentary.
+    const answer = resp.content
+      .filter((b): b is Extract<typeof b, { type: "text" }> => b.type === "text")
+      .map((b) => b.text)
+      .join("\n\n")
+      .trim();
+    const searchesUsed = resp.content.filter(
+      (b) => b.type === "server_tool_use" && (b as { name?: string }).name === "web_search"
+    ).length;
+    return NextResponse.json({ ok: true, answer, hasFullArticle, searchesUsed });
   } catch (e) {
     console.error("[ask] error:", e);
     return NextResponse.json(
