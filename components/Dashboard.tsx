@@ -48,18 +48,20 @@ const SORTABLE_TABS: Set<Tab> = new Set([
   "blackstone",
 ]);
 
-// Case-insensitive Blackstone mention test. Matches "Blackstone", "BX" only when
-// it stands alone as a ticker (not as a substring of "BXMT" etc would match too,
-// but those are still Blackstone-affiliated so we keep it broad). Excludes
-// "BlackRock" which is a different firm.
-const BLACKSTONE_RE = /\bblackstone\b|\bBX\b/i;
+// Case-insensitive Blackstone mention test. We deliberately only check the
+// SUMMARY fields (title, tldr, bullets, whyItMatters) — not fullContent — so a
+// 60K-char podcast transcript that lists "Blackstone, Apollo, KKR" once doesn't
+// false-positive into this tab. If Blackstone is actually the story, Claude's
+// TLDR/bullets will say so.
+// "BX" ticker matching dropped — too many false positives (Boxer ticker, etc.).
+// "BlackRock" is excluded by the word boundary on the suffix.
+const BLACKSTONE_RE = /\bblackstone\b/i;
 function mentionsBlackstone(i: DigestItem): boolean {
   const haystack = [
     i.title,
     i.tldr ?? "",
     i.whyItMatters ?? "",
     ...(i.bullets ?? []),
-    i.fullContent ?? "",
   ]
     .join(" ");
   return BLACKSTONE_RE.test(haystack);
