@@ -171,7 +171,9 @@ export const SOURCES: Source[] = [
   {
     // a16z's main substack (was a16z.substack.com — now lives on the custom
     // www.a16z.news domain and the substack subdomain 301-redirects there).
-    // All posts are free (paywall=everyone). Multi-post-per-day cadence.
+    // All posts are free (paywall=everyone). Multi-post-per-day cadence means we
+    // cap fetch at 5 so it doesn't crowd Citrini / Clouded / Irrational / MBI
+    // off the Substacks tab. Combined with the per-source cap in routeAndCap.
     id: "a16z",
     name: "a16z",
     kind: "rss",
@@ -180,6 +182,7 @@ export const SOURCES: Source[] = [
     defaultCadence: "today",
     category: "markets",
     tab: "reads",
+    itemsPerFeed: 5,
   },
 
   // ── BUSINESS BREAKDOWNS tab ── long-form deep-dive content ──

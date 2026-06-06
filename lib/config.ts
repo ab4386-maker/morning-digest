@@ -5,11 +5,16 @@ import type { Cadence } from "./types";
 export const CAPS = {
   today: 25,
   other: 25,
-  reads: 15,
+  reads: 20,
   breakdowns: 15,
   fun: 12,
   re: 15,
 } as const;
+
+// Per-source cap on the Substacks (reads) tab. Daily-cadence sources like a16z
+// otherwise crowd out weekly-cadence ones (Citrini, Clouded Judgement, etc.).
+// 4 keeps the tab diverse while still letting prolific substacks have presence.
+export const MAX_PER_SOURCE_READS = 4;
 
 // ── SCORE FLOORS (filter out below) ──
 export const MIN_MARKETS_SCORE = 30;

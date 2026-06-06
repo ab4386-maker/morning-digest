@@ -27,7 +27,7 @@ import { AddSourcePanel } from "./AddSourcePanel";
 import { RefreshButton } from "./RefreshButton";
 import { PortfolioView } from "./PortfolioView";
 
-type Tab = TabId | "features" | "trends" | "wired" | "earnings" | "overview" | "portfolio";
+type Tab = TabId | "features" | "trends" | "wired" | "earnings" | "overview" | "portfolio" | "blackstone";
 
 // Tabs that don't display a "last updated" line under the nav.
 const NO_UPDATED_LINE: Set<Tab> = new Set(["wired", "earnings", "overview", "portfolio"]);
@@ -45,7 +45,25 @@ const SORTABLE_TABS: Set<Tab> = new Set([
   "breakdowns",
   "fun",
   "re",
+  "blackstone",
 ]);
+
+// Case-insensitive Blackstone mention test. Matches "Blackstone", "BX" only when
+// it stands alone as a ticker (not as a substring of "BXMT" etc would match too,
+// but those are still Blackstone-affiliated so we keep it broad). Excludes
+// "BlackRock" which is a different firm.
+const BLACKSTONE_RE = /\bblackstone\b|\bBX\b/i;
+function mentionsBlackstone(i: DigestItem): boolean {
+  const haystack = [
+    i.title,
+    i.tldr ?? "",
+    i.whyItMatters ?? "",
+    ...(i.bullets ?? []),
+    i.fullContent ?? "",
+  ]
+    .join(" ");
+  return BLACKSTONE_RE.test(haystack);
+}
 
 type SortMode = "score" | "source";
 
@@ -140,6 +158,7 @@ export function Dashboard({
         <TabButton active={tab === "trends"} onClick={() => setTab("trends")}>Trends Debunked</TabButton>
         <TabButton active={tab === "other"} onClick={() => setTab("other")}>Other News</TabButton>
         <TabButton active={tab === "re"} onClick={() => setTab("re")}>RE</TabButton>
+        <TabButton active={tab === "blackstone"} onClick={() => setTab("blackstone")}>Blackstone</TabButton>
         <TabButton active={tab === "fun"} onClick={() => setTab("fun")}>Fun</TabButton>
         <TabButton active={tab === "earnings"} onClick={() => setTab("earnings")}>Earnings</TabButton>
         <TabButton active={tab === "portfolio"} onClick={() => setTab("portfolio")}>Portfolio</TabButton>
@@ -238,6 +257,11 @@ function filterItemsForTab(
       break;
     case "re":
       filtered = items.filter((i) => tabOf(i) === "re");
+      break;
+    case "blackstone":
+      // Virtual cross-cut: any item mentioning Blackstone, regardless of source tab.
+      // Items stay in their original tabs too — this is in addition, not instead.
+      filtered = items.filter(mentionsBlackstone);
       break;
     default:
       return [];

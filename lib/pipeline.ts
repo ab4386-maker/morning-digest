@@ -25,6 +25,7 @@ import type { DigestItem, LastUpdated, Trend } from "./types";
 import {
   BREAKING_TODAY_FLOOR,
   CAPS,
+  MAX_PER_SOURCE_READS,
   MIN_FUN_SCORE,
   MIN_MARKETS_SCORE,
   PODCAST_SOURCE_IDS,
@@ -307,7 +308,19 @@ function routeAndCap(survivors: DigestItem[]): RouteResult {
   const other = survivors
     .filter((i) => tabOf(i) === "today" && !goesToToday(i))
     .slice(0, CAPS.other);
-  const reads = survivors.filter((i) => tabOf(i) === "reads").slice(0, CAPS.reads);
+  // Substacks tab: apply a per-source cap before the overall cap so prolific
+  // sources (a16z, which publishes daily) don't crowd out weekly substacks
+  // (Citrini, Clouded Judgement, Irrational Analysis, MBI Deep Dives).
+  const readsRaw = survivors.filter((i) => tabOf(i) === "reads");
+  const readsPerSource = new Map<string, number>();
+  const readsDiverse: DigestItem[] = [];
+  for (const item of readsRaw) {
+    const count = readsPerSource.get(item.sourceId) ?? 0;
+    if (count >= MAX_PER_SOURCE_READS) continue;
+    readsPerSource.set(item.sourceId, count + 1);
+    readsDiverse.push(item);
+  }
+  const reads = readsDiverse.slice(0, CAPS.reads);
   const breakdowns = survivors
     .filter((i) => tabOf(i) === "breakdowns")
     .slice(0, CAPS.breakdowns);
